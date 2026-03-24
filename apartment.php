@@ -16,6 +16,12 @@ if (!$apt) {
     exit;
 }
 
+// Increment view count
+$pdo->prepare("UPDATE apartments SET view_count = view_count + 1 WHERE id = ?")->execute([$id]);
+try {
+    $pdo->prepare("INSERT INTO daily_views (apartment_id, user_id, view_date, views) VALUES (?, ?, CURDATE(), 1) ON DUPLICATE KEY UPDATE views = views + 1")->execute([$id, $apt['user_id']]);
+} catch (Exception $e) {}
+
 $images = [];
 try { $images = json_decode($apt['images'], true); } catch(Exception $e) {}
 if (!$images || count($images) === 0) {
@@ -23,6 +29,13 @@ if (!$images || count($images) === 0) {
 }
 
 $features = $apt['features'] ? explode(',', $apt['features']) : [];
+
+$my_bids = [];
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM bids WHERE apartment_id = ? AND user_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$id, $_SESSION['user_id']]);
+    $my_bids = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -127,7 +140,12 @@ $features = $apt['features'] ? explode(',', $apt['features']) : [];
         <div class="detail-header">
             <h1><?= htmlspecialchars($apt['title']) ?></h1>
             <div class="detail-address"><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($apt['address']) ?></div>
-            <div class="detail-price">Rs. <?= number_format($apt['price']) ?> /month</div>
+            <div class="detail-price">
+                Rs. <?= number_format($apt['price']) ?> 
+                <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">
+                    <?= $apt['listing_mode'] === 'Buy' ? 'Total Price' : '/ month' ?>
+                </span>
+            </div>
             <div class="detail-tags">
                 <span class="detail-tag" style="background: var(--primary); color: white; border: none; font-weight: 600;"><i class="fa-solid fa-tag"></i> For <?= htmlspecialchars($apt['listing_mode'] ?? 'Rent') ?></span>
                 <span class="detail-tag"><i class="fa-solid fa-building"></i> <?= htmlspecialchars($apt['type']) ?></span>
@@ -252,10 +270,11 @@ $features = $apt['features'] ? explode(',', $apt['features']) : [];
                         <?php if($_SESSION['user_id'] == $apt['user_id']): ?>
                             <p style="color: var(--text-secondary); text-align: center; padding: 1rem 0;">You cannot bid on your own listing.</p>
                         <?php else: ?>
+                            <!-- Current Offer Form -->
                             <div style="padding: 0.5rem 0;">
                                 <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Your Offer Amount</label>
                                 <input type="range" id="bid-slider" style="width: 100%; margin-bottom: 1rem; accent-color: var(--primary);" 
-                                       min="<?= (int)$apt['price'] * 0.8 ?>" max="<?= (int)$apt['price'] * 2 ?>" step="5000" value="<?= (int)$apt['price'] ?>">
+                                       min="<?= (int)$apt['price'] * 0.7 ?>" max="<?= (int)$apt['price'] * 1.5 ?>" step="5000" value="<?= (int)$apt['price'] ?>">
                                 <div style="text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
                                     Rs. <span id="bid-amount-display"><?= number_format($apt['price']) ?></span>
                                 </div>
@@ -263,6 +282,31 @@ $features = $apt['features'] ? explode(',', $apt['features']) : [];
                                 <button id="submit-bid-btn" class="btn-primary" style="width: 100%; justify-content: center; font-size: 1.05rem;" data-apt="<?= $id ?>">Submit Offer</button>
                                 <div id="bid-feedback" style="margin-top: 0.8rem; text-align: center; font-size: 0.9rem; font-weight: 600; display: none;"></div>
                             </div>
+
+                            <!-- My History Section -->
+                            <?php if(count($my_bids) > 0): ?>
+                                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border-glass);">
+                                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.8rem;"><i class="fa-solid fa-clock-rotate-left"></i> Your Offer History</h4>
+                                    <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                                        <?php foreach($my_bids as $bid): ?>
+                                            <div style="background: var(--bg-main); padding: 0.8rem; border-radius: 8px; border-left: 4px solid <?= $bid['status'] === 'accepted' ? '#10b981' : ($bid['status'] === 'rejected' ? '#ef4444' : 'var(--primary)') ?>;">
+                                                <div style="display: flex; justify-content:建设; align-items: center; justify-content: space-between; margin-bottom: 0.3rem;">
+                                                    <span style="font-weight: 700; color: var(--text-main);">Rs. <?= number_format($bid['amount']) ?></span>
+                                                    <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;" class="status-badge status-<?= $bid['status'] ?>">
+                                                        <?= $bid['status'] ?>
+                                                    </span>
+                                                </div>
+                                                <div style="font-size: 0.75rem; color: var(--text-secondary);"><?= date('M d, Y', strtotime($bid['created_at'])) ?></div>
+                                                <?php if($bid['status'] === 'accepted'): ?>
+                                                    <div style="margin-top: 0.5rem; padding-top:0.5rem; border-top: 1px solid rgba(0,0,0,0.05); font-size: 0.8rem; color: #065f46;">
+                                                        <i class="fa-solid fa-check-circle"></i> Seller accepted! Contact via Phone or Email above.
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php else: ?>
                         <div style="text-align: center; padding: 1.5rem 0;">

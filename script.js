@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-
+    let currentMode = 'Rent';
+    
     // --- Theme Toggle ---
     const themeBtn = document.getElementById('theme-toggle');
     const currentTheme = localStorage.getItem('theme') || 'light';
@@ -186,17 +187,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxPriceInput = document.getElementById('filter-max-price');
     const priceDisplay = document.getElementById('price-range-display');
 
+    const RENT_MAX = 1000000;
+    const BUY_MAX = 200000000; // 200M
+
+    function updatePriceUI(mode) {
+        if (!priceSlider || !priceSlider.noUiSlider) return;
+        const isBuy = mode === 'Buy';
+        const newMax = isBuy ? BUY_MAX : RENT_MAX;
+        const newStep = isBuy ? 100000 : 5000;
+
+        priceSlider.noUiSlider.updateOptions({
+            range: { 'min': 0, 'max': newMax },
+            step: newStep
+        });
+        // Reset to full range on mode change
+        priceSlider.noUiSlider.set([0, newMax]);
+
+        // Update Desktop Selects if they exist
+        const minSel = document.getElementById('filter-min-price-select');
+        const maxSel = document.getElementById('filter-max-price-select');
+        if (minSel && maxSel) {
+            const buyOptionsMin = [
+                {v:'', t:'Min Price'}, {v:'1000000', t:'Rs. 1M'}, {v:'5000000', t:'Rs. 5M'}, {v:'10000000', t:'Rs. 10M'}, 
+                {v:'25000000', t:'Rs. 25M'}, {v:'50000000', t:'Rs. 50M'}, {v:'100000000', t:'Rs. 100M'}
+            ];
+            const rentOptionsMin = [
+                {v:'', t:'Min Price'}, {v:'10000', t:'Rs. 10k'}, {v:'25000', t:'Rs. 25k'}, {v:'50000', t:'Rs. 50k'}, 
+                {v:'100000', t:'Rs. 100k'}, {v:'250000', t:'Rs. 250k'}, {v:'500000', t:'Rs. 500k'}
+            ];
+            const buyOptionsMax = [
+                {v:'', t:'Max Price'}, {v:'5000000', t:'Rs. 5M'}, {v:'10000000', t:'Rs. 10M'}, {v:'25000000', t:'Rs. 25M'}, 
+                {v:'50000000', t:'Rs. 50M'}, {v:'100000000', t:'Rs. 100M'}, {v:BUY_MAX, t:'Rs. 200M+'}
+            ];
+            const rentOptionsMax = [
+                {v:'', t:'Max Price'}, {v:'50000', t:'Rs. 50k'}, {v:'100000', t:'Rs. 100k'}, {v:'250000', t:'Rs. 250k'}, 
+                {v:'500000', t:'Rs. 500k'}, {v:'750000', t:'Rs. 750k'}, {v:RENT_MAX, t:'Rs. 1M+'}
+            ];
+
+            const optsMin = isBuy ? buyOptionsMin : rentOptionsMin;
+            const optsMax = isBuy ? buyOptionsMax : rentOptionsMax;
+
+            minSel.innerHTML = optsMin.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+            maxSel.innerHTML = optsMax.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+        }
+    }
+
     if (priceSlider && typeof noUiSlider !== 'undefined') {
         noUiSlider.create(priceSlider, {
-            start: [0, 500000], connect: true, step: 5000,
-            range: { 'min': 0, 'max': 1000000 },
+            start: [0, RENT_MAX], connect: true, step: 5000,
+            range: { 'min': 0, 'max': RENT_MAX },
             format: { to: v => Math.round(v), from: v => Number(v) }
         });
         priceSlider.noUiSlider.on('update', function (values, handle) {
+            const currentMax = currentMode === 'Buy' ? BUY_MAX : RENT_MAX;
             if (handle === 0) { if (minPriceInput) minPriceInput.value = values[0]; }
-            else { if (maxPriceInput) maxPriceInput.value = values[1] === '1000000' ? '' : values[1]; }
+            else { if (maxPriceInput) maxPriceInput.value = (Number(values[1]) >= currentMax) ? '' : values[1]; }
+            
             const minD = Number(values[0]).toLocaleString();
-            const maxD = values[1] === '1000000' ? '1M+' : Number(values[1]).toLocaleString();
+            const maxVal = Number(values[1]);
+            const maxD = (maxVal >= currentMax) ? (currentMax >= 1000000 ? (currentMax/1000000) + 'M+' : '1M+') : maxVal.toLocaleString();
             if (priceDisplay) priceDisplay.innerText = 'Rs. ' + minD + ' - Rs. ' + maxD;
         });
         priceSlider.noUiSlider.on('change', () => fetchListings());
@@ -215,11 +264,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Buy/Rent Toggle (ALL mode buttons synced) ---
-    let currentMode = 'Rent';
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             currentMode = e.target.dataset.mode;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
+            updatePriceUI(currentMode); // Update slider and selects
             fetchListings();
         });
     });
