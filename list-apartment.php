@@ -1,0 +1,670 @@
+<?php
+require_once 'auth_check.php'; // validates session + includes db.php
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $title = $_POST['title'];
+    $type = $_POST['type'];
+    $price = $_POST['price'];
+    $beds = $_POST['beds'];
+    $baths = $_POST['baths'];
+    $size_sqft = $_POST['size_sqft'] ?: 0;
+    $completion_status = $_POST['completion_status'];
+    $furnished_status = $_POST['furnished_status'];
+    $apartment_complex = $_POST['apartment_complex'] ?: '';
+    $address = $_POST['address'];
+    $description = $_POST['description'];
+    $features = isset($_POST['features']) ? implode(', ', $_POST['features']) : '';
+    
+    $lat = isset($_POST['lat']) && !empty($_POST['lat']) ? (float)$_POST['lat'] : 6.9271;
+    $lng = isset($_POST['lng']) && !empty($_POST['lng']) ? (float)$_POST['lng'] : 79.8612;
+
+    // Multiple File Uploads
+    $uploaded_images = [];
+    $upload_dir = 'uploads/';
+    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+    
+    if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
+        $count = min(count($_FILES['images']['name']), 5);
+        for ($i = 0; $i < $count; $i++) {
+            if ($_FILES['images']['error'][$i] === UPLOAD_ERR_OK) {
+                $tmp = $_FILES['images']['tmp_name'][$i];
+                $ext = pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION);
+                $newName = uniqid() . '_' . $i . '.' . $ext;
+                $dest = $upload_dir . $newName;
+                if (move_uploaded_file($tmp, $dest)) {
+                    $uploaded_images[] = $dest;
+                }
+            }
+        }
+    }
+
+    if (count($uploaded_images) === 0) {
+        $uploaded_images[] = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
+    }
+    $images_json = json_encode($uploaded_images);
+
+    $listing_mode = $_POST['listing_mode'] ?? 'Rent';
+    $seller_email = $_POST['seller_email'] ?? '';
+    $seller_phone = $_POST['seller_phone'] ?? '';
+    $size_perches = (isset($_POST['size_perches']) && $_POST['size_perches'] !== '') ? (float)$_POST['size_perches'] : null;
+
+    $stmt = $pdo->prepare("INSERT INTO apartments (user_id, title, type, price, bedrooms, baths, size_sqft, completion_status, furnished_status, apartment_complex, address, description, features, lat, lng, images, status, listing_mode, seller_email, seller_phone, size_perches) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
+    $stmt->execute([$_SESSION['user_id'], $title, $type, $price, $beds, $baths, $size_sqft, $completion_status, $furnished_status, $apartment_complex, $address, $description, $features, $lat, $lng, $images_json, $listing_mode, $seller_email, $seller_phone, $size_perches]);
+    
+    header("Location: dashboard.php?msg=Listing+Submitted+for+Approval");
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Apartment - MyHomeMyLand.LK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ── Type Selector ── */
+        .type-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .type-selector .type-option {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
+            border: 2px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 0.8rem 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .type-selector .type-option:hover {
+            border-color: var(--primary);
+        }
+        .type-selector input[type="radio"] {
+            display: none;
+        }
+        .type-selector .type-option-inner {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+            pointer-events: none;
+        }
+        .type-selector .type-option-inner .type-icon {
+            font-size: 1.4rem;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+        .type-selector input[type="radio"]:checked + .type-option-inner {
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .type-selector label:has(input[type="radio"]:checked) .type-option,
+        .type-selector .type-option.selected {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.06);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* ── Mode Selector (Buy/Rent) ── */
+        .mode-selector {
+            display: flex;
+            gap: 0.8rem;
+        }
+        .mode-selector .mode-option {
+            flex: 1;
+            text-align: center;
+            padding: 0.8rem;
+            border: 2px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            display: block;
+        }
+        .mode-selector .mode-option:hover {
+            border-color: var(--primary);
+        }
+        .mode-selector input[type="radio"] {
+            display: none;
+        }
+        .mode-selector label:has(input[type="radio"]:checked) .mode-option,
+        .mode-selector .mode-option.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ── Features Grid ── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.5rem;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-main);
+            user-select: none;
+        }
+        .feature-item:hover {
+            border-color: var(--primary);
+        }
+        .feature-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin: 0;
+        }
+        .feature-item .feature-label {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            pointer-events: none;
+        }
+        .feature-item:has(input:checked) {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.06);
+        }
+
+        /* ── Image Upload ── */
+        .image-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .image-preview-grid img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid var(--border-glass);
+        }
+
+        /* ── Fix global label bleed into custom components ── */
+        .type-selector label,
+        .mode-selector label,
+        .feature-item {
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .type-selector .type-option {
+                min-width: 70px;
+                padding: 0.6rem 0.3rem;
+            }
+            .type-selector .type-option-inner {
+                font-size: 0.75rem;
+            }
+            .type-selector .type-option-inner .type-icon {
+                font-size: 1.2rem;
+            }
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .mode-selector {
+                gap: 0.5rem;
+            }
+            .mode-selector .mode-option {
+                padding: 0.6rem;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+<?php include 'get-theme.php'; ?>
+</head>
+<body class="form-page">
+    <header class="site-header">
+        <nav class="navbar">
+<?php include 'logo-partial.php'; ?>
+            <div class="nav-links">
+                <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+                <a href="index.php">Explore</a>
+                <a href="dashboard.php">Dashboard</a>
+                <a href="logout.php">Logout</a>
+            </div>
+        </nav>
+    </header>
+    <main class="page-container form-page">
+        <div class="form-wrapper">
+            <h2 style="margin-bottom: 0.3rem;">List Your Property</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Fill in all the details below accurately.</p>
+            <form method="POST" class="listing-form" enctype="multipart/form-data">
+
+                <!-- Listing Mode -->
+                <div class="input-group">
+                    <label>Listing Mode *</label>
+                    <div class="mode-selector" id="mode-selector">
+                        <label>
+                            <input type="radio" name="listing_mode" value="Rent" checked>
+                            <div class="mode-option selected">Rent</div>
+                        </label>
+                        <label>
+                            <input type="radio" name="listing_mode" value="Buy">
+                            <div class="mode-option">Buy</div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Property Type -->
+                <div class="input-group">
+                    <label>Property Type *</label>
+                    <div class="type-selector" id="type-selector">
+                        <label>
+                            <input type="radio" name="type" value="Apartment" checked>
+                            <div class="type-option selected">
+                                <div class="type-option-inner">
+                                    <span class="type-icon">🏢</span>
+                                    Apartment
+                                </div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="House">
+                            <div class="type-option">
+                                <div class="type-option-inner">
+                                    <span class="type-icon">🏠</span>
+                                    House
+                                </div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Villa">
+                            <div class="type-option">
+                                <div class="type-option-inner">
+                                    <span class="type-icon">🏡</span>
+                                    Villa
+                                </div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Commercial">
+                            <div class="type-option">
+                                <div class="type-option-inner">
+                                    <span class="type-icon">🏪</span>
+                                    Commercial
+                                </div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Land">
+                            <div class="type-option">
+                                <div class="type-option-inner">
+                                    <span class="type-icon">🌿</span>
+                                    Land
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Title & Price -->
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Listing Title *</label>
+                        <input type="text" name="title" placeholder="e.g. Premium 2BR Fully Furnished Apartment" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Price (Rs.) *</label>
+                        <input type="number" name="price" placeholder="75000" required>
+                    </div>
+                </div>
+
+                <!-- Beds & Baths (Hidden for Land) -->
+                <div class="input-row" id="row-beds-baths">
+                    <div class="input-group">
+                        <label>Bedrooms *</label>
+                        <select name="beds" id="val-beds">
+                            <option value="studio">Studio</option>
+                            <option value="1">1 Bedroom</option>
+                            <option value="2" selected>2 Bedrooms</option>
+                            <option value="3">3 Bedrooms</option>
+                            <option value="4+">4+ Bedrooms</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Bathrooms *</label>
+                        <select name="baths" id="val-baths">
+                            <option value="1">1 Bathroom</option>
+                            <option value="2" selected>2 Bathrooms</option>
+                            <option value="3">3 Bathrooms</option>
+                            <option value="4+">4+ Bathrooms</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Size & Complex -->
+                <div class="input-row">
+                    <div class="input-group" id="grp-sqft">
+                        <label>Size (sqft)</label>
+                        <input type="number" name="size_sqft" placeholder="e.g. 842">
+                    </div>
+                    <div class="input-group" id="grp-perches" style="display: none;">
+                        <label>Size (perches) *</label>
+                        <input type="number" step="0.1" name="size_perches" placeholder="e.g. 10.5" id="val-perches">
+                    </div>
+                    <div class="input-group" id="grp-complex">
+                        <label>Apartment Complex</label>
+                        <input type="text" name="apartment_complex" placeholder="e.g. Luna Tower, Colombo 02">
+                    </div>
+                </div>
+
+                <!-- Completion & Furnished Status -->
+                <div class="input-row" id="row-status">
+                    <div class="input-group">
+                        <label>Completion Status *</label>
+                        <select name="completion_status" required>
+                            <option value="Ready">Ready</option>
+                            <option value="Under Construction">Under Construction</option>
+                            <option value="Off-Plan">Off-Plan</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Furnished Status *</label>
+                        <select name="furnished_status" required>
+                            <option value="Fully Furnished">Fully Furnished</option>
+                            <option value="Semi Furnished">Semi Furnished</option>
+                            <option value="Unfurnished">Unfurnished</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Seller Contact -->
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Seller Email *</label>
+                        <input type="email" name="seller_email" placeholder="email@example.com" value="<?= htmlspecialchars($_SESSION['user_email'] ?? '') ?>" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Seller Phone *</label>
+                        <input type="tel" name="seller_phone" placeholder="e.g. 077 123 4567" required>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="input-group">
+                    <label>Description *</label>
+                    <textarea name="description" rows="5" placeholder="Describe the property in detail..." required></textarea>
+                </div>
+
+                <!-- Image Upload -->
+                <div class="input-group">
+                    <label>Upload Images (Max 5)</label>
+                    <input type="file" name="images[]" id="image-upload" multiple accept="image/*" style="padding: 0.5rem;">
+                    <div id="image-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: none;">You can only upload a maximum of 5 images.</div>
+                    <div class="image-preview-grid" id="image-preview"></div>
+                </div>
+
+                <!-- Features & Amenities -->
+                <div class="input-group">
+                    <label>Features & Amenities</label>
+                    <div class="features-grid">
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="A/C">
+                            <span class="feature-label">A/C</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Pool">
+                            <span class="feature-label">Pool</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Gym">
+                            <span class="feature-label">Gym</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Parking">
+                            <span class="feature-label">Parking</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Furnished">
+                            <span class="feature-label">Furnished</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Balcony">
+                            <span class="feature-label">Balcony</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Security">
+                            <span class="feature-label">24/7 Security</span>
+                        </label>
+                        <label class="feature-item">
+                            <input type="checkbox" name="features[]" value="Generator">
+                            <span class="feature-label">Generator</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Address + Geocode -->
+                <div class="input-group">
+                    <label>Full Address *</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="address" id="address-input" placeholder="e.g. Union Place, Colombo 02" required style="flex: 1;">
+                        <button type="button" id="geocode-btn" class="btn-primary" style="white-space: nowrap;"><i class="fa-solid fa-location-crosshairs"></i> Locate</button>
+                    </div>
+                    <small style="color: var(--text-secondary); margin-top: 5px; display: block;">Click 'Locate' to automatically find and drop a pin on the map below.</small>
+                </div>
+
+                <!-- Map Pin -->
+                <div class="input-group">
+                    <label>Pin Exact Location on Map *</label>
+                    <div id="selection-map" style="height: 300px; border-radius: 8px; border: 1px solid var(--border-glass);"></div>
+                    <input type="hidden" name="lat" id="lat" value="6.9271">
+                    <input type="hidden" name="lng" id="lng" value="79.8612">
+                    <small style="color: var(--text-secondary);">Click or drag the marker to your property's exact location.</small>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width:100%; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem;">Submit Listing for Approval</button>
+            </form>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-container">
+            <p>&copy; <?php echo date('Y'); ?> MyHomeMyLand.LK. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact Us</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ── Theme Toggle ──
+            const themeBtn = document.getElementById('theme-toggle');
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+            if (themeBtn) {
+                themeBtn.addEventListener('click', () => {
+                    let theme = document.documentElement.getAttribute('data-theme');
+                    if (theme === 'dark') {
+                        document.documentElement.removeAttribute('data-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                });
+            }
+
+            // ── Type Selector (click-to-select with visual feedback) ──
+            const typeSelector = document.getElementById('type-selector');
+            if (typeSelector) {
+                typeSelector.addEventListener('click', (e) => {
+                    const label = e.target.closest('label');
+                    if (!label) return;
+                    const radio = label.querySelector('input[type="radio"]');
+                    if (!radio) return;
+                    // Clear all selected
+                    typeSelector.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('selected'));
+                    // Mark this one
+                    label.querySelector('.type-option').classList.add('selected');
+                });
+            }
+
+            // ── Mode Selector (click-to-select) ──
+            const modeSelector = document.getElementById('mode-selector');
+            if (modeSelector) {
+                modeSelector.addEventListener('click', (e) => {
+                    const label = e.target.closest('label');
+                    if (!label) return;
+                    modeSelector.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
+                    label.querySelector('.mode-option').classList.add('selected');
+                });
+            }
+
+            // ── Map Init ──
+            const map = L.map('selection-map').setView([6.9271, 79.8612], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            }).addTo(map);
+
+            let marker = L.marker([6.9271, 79.8612], { draggable: true }).addTo(map);
+            const latInput = document.getElementById('lat');
+            const lngInput = document.getElementById('lng');
+
+            marker.on('dragend', function () {
+                const pos = marker.getLatLng();
+                latInput.value = pos.lat.toFixed(8);
+                lngInput.value = pos.lng.toFixed(8);
+            });
+
+            // ── Geocoding ──
+            const geocodeBtn = document.getElementById('geocode-btn');
+            const addressInput = document.getElementById('address-input');
+
+            geocodeBtn.addEventListener('click', async () => {
+                const query = addressInput.value.trim();
+                if (!query) return alert('Please enter an address to locate.');
+
+                geocodeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Sri Lanka')}&limit=1`);
+                    const data = await response.json();
+
+                    if (data && data.length > 0) {
+                        const { lat, lon } = data[0];
+                        const pos = new L.LatLng(lat, lon);
+                        map.setView(pos, 15);
+                        marker.setLatLng(pos);
+                        latInput.value = lat;
+                        lngInput.value = lon;
+                    } else {
+                        alert('Could not find that address on the map. You can drag the marker manually.');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Geocoding service failed.');
+                }
+                geocodeBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Locate';
+            });
+
+            // ── Dynamic Fields per Property Type ──
+            const typeRadios = document.querySelectorAll('input[name="type"]');
+            const rowBedsBaths = document.getElementById('row-beds-baths');
+            const rowStatus = document.getElementById('row-status');
+            const grpComplex = document.getElementById('grp-complex');
+            const grpSqft = document.getElementById('grp-sqft');
+            const grpPerches = document.getElementById('grp-perches');
+            const valBeds = document.getElementById('val-beds');
+            const valBaths = document.getElementById('val-baths');
+            const valPerches = document.getElementById('val-perches');
+
+            //                    beds  baths sqft  complex status perches
+            const fieldRules = {
+                Apartment:       [true, true, true, true,   true,  false],
+                House:           [true, true, true, false,  true,  false],
+                Villa:           [true, true, true, false,  true,  false],
+                Commercial:      [false,false,true, false,  true,  false],
+                Land:            [false,false,false,false,  false, true],
+            };
+
+            function applyTypeRules(type) {
+                const [beds, baths, sqft, complex, status, perches] = fieldRules[type] || fieldRules.Apartment;
+
+                rowBedsBaths.style.display = beds ? 'grid' : 'none';
+                grpSqft.style.display      = sqft ? 'block' : 'none';
+                grpComplex.style.display   = complex ? 'block' : 'none';
+                rowStatus.style.display    = status ? 'grid' : 'none';
+                grpPerches.style.display   = perches ? 'block' : 'none';
+
+                // Required toggles
+                if (beds) { valBeds.setAttribute('required', ''); } else { valBeds.removeAttribute('required'); }
+                if (baths) { valBaths.setAttribute('required', ''); } else { valBaths.removeAttribute('required'); }
+                if (perches) { valPerches.setAttribute('required', ''); } else { valPerches.removeAttribute('required'); }
+            }
+
+            typeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => applyTypeRules(e.target.value));
+            });
+
+            // ── Image Upload (Max 5 + Preview) ──
+            const imageUpload = document.getElementById('image-upload');
+            const imagePreview = document.getElementById('image-preview');
+            const imageError = document.getElementById('image-error');
+
+            imageUpload.addEventListener('change', function () {
+                imagePreview.innerHTML = '';
+
+                if (this.files.length > 5) {
+                    imageError.style.display = 'block';
+                    this.value = '';
+                    return;
+                }
+                imageError.style.display = 'none';
+
+                Array.from(this.files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            imagePreview.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

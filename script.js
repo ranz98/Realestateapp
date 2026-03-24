@@ -1,0 +1,335 @@
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- Theme Toggle ---
+    const themeBtn = document.getElementById('theme-toggle');
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    if (currentTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    if(themeBtn) {
+        themeBtn.addEventListener('click', () => {
+            let theme = document.documentElement.getAttribute('data-theme');
+            if (theme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    }
+
+    // --- Helper: read desktop or mobile filter value ---
+    function getVal(desktopId, mobileId) {
+        const desk = document.getElementById(desktopId);
+        const mob = mobileId ? document.getElementById(mobileId) : null;
+        if (desk && desk.offsetParent !== null) return desk.value || '';
+        if (mob && mob.value) return mob.value || '';
+        if (desk) return desk.value || '';
+        return '';
+    }
+
+    // --- Map Initialization ---
+    let map, markersLayer, flyInCompleted = false, flyInRunning = false;
+    const mapElement = document.getElementById('map');
+    
+    if (mapElement && typeof L !== 'undefined') {
+        map = L.map('map', { center: [20, 0], zoom: 2, minZoom: 2, attributionControl: false, zoomControl: true, scrollWheelZoom: true });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
+
+        // Brand overlay
+        const overlayStyles = document.createElement('style');
+        overlayStyles.textContent = `
+            .map-brand-overlay { position:absolute; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+            .map-brand-overlay .brand-text { font-family:'Outfit',sans-serif; font-size:clamp(1.6rem,3.5vw,2.8rem); font-weight:800; letter-spacing:4px; color:var(--primary,#4f46e5); opacity:0; animation:brandIn 1.2s ease 0.1s both; }
+            .map-brand-overlay.brand-exit .brand-text { animation:brandOut 0.8s ease forwards; }
+            .map-brand-overlay.brand-exit { animation:overlayOut 0.8s ease 0.5s forwards; }
+            @keyframes brandIn { from{opacity:0} to{opacity:1} }
+            @keyframes brandOut { from{opacity:1} to{opacity:0} }
+            @keyframes overlayOut { from{opacity:1} to{opacity:0} }
+        `;
+        document.head.appendChild(overlayStyles);
+        const brandOverlay = document.createElement('div');
+        brandOverlay.className = 'map-brand-overlay';
+        brandOverlay.innerHTML = '<div class="brand-text">MyHomeMyLand</div>';
+        mapElement.parentElement.style.position = 'relative';
+        mapElement.parentElement.appendChild(brandOverlay);
+
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const isWeakDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory && navigator.deviceMemory <= 2);
+        const skipAnimation = prefersReducedMotion || isWeakDevice;
+
+        function runFlyIn() {
+            if (flyInCompleted || flyInRunning) return;
+            const rect = mapElement.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+            flyInRunning = true;
+            map.invalidateSize();
+            if (skipAnimation) {
+                brandOverlay.remove();
+                map.setView([6.90, 79.96], 12, { animate: false });
+                map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
+                map.options.minZoom = 7;
+                flyInCompleted = true; flyInRunning = false;
+                return;
+            }
+            map.flyTo([7.85, 80.75], 8, { duration: 1.6, easeLinearity: 0.2 });
+            map.once('moveend', () => {
+                setTimeout(() => {
+                    brandOverlay.classList.add('brand-exit');
+                    setTimeout(() => { brandOverlay.remove(); }, 1300);
+                    map.flyTo([6.90, 79.96], 12, { duration: 1.4, easeLinearity: 0.2 });
+                    map.once('moveend', () => {
+                        map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
+                        map.options.minZoom = 7;
+                        flyInCompleted = true; flyInRunning = false;
+                        brandOverlay?.remove();
+                    });
+                }, 800);
+            });
+        }
+
+        function attemptFlyIn() {
+            if (flyInCompleted) return;
+            const rect = mapElement.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) runFlyIn();
+        }
+        setTimeout(attemptFlyIn, 400);
+
+        const mapSect = document.getElementById('map-section');
+        if (mapSect && typeof MutationObserver !== 'undefined') {
+            const obs = new MutationObserver(() => { if (!flyInCompleted) setTimeout(() => { map.invalidateSize(); attemptFlyIn(); }, 250); });
+            obs.observe(mapSect, { attributes: true, attributeFilter: ['class', 'style'] });
+            const mc = document.querySelector('.main-container');
+            if (mc) obs.observe(mc, { attributes: true, attributeFilter: ['class'] });
+        }
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(entries => {
+                for (const e of entries) if (e.contentRect.width > 0 && e.contentRect.height > 0 && !flyInCompleted && !flyInRunning) { map.invalidateSize(); setTimeout(attemptFlyIn, 300); }
+            }).observe(mapElement);
+        }
+    }
+
+    // --- Mobile View Toggle ---
+    const mainContainer = document.querySelector('.main-container');
+    const mapSection = document.getElementById('map-section');
+    const listingsSection = document.getElementById('listings-section');
+    const mvtButtons = document.querySelectorAll('.mvt-btn');
+
+    function updateHeaderHeight() {
+        const header = document.querySelector('.site-header');
+        if (header && mainContainer) mainContainer.style.setProperty('--header-h', header.offsetHeight + 'px');
+    }
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+
+    function applyMobileMode(mode) {
+        mainContainer?.classList.remove('split-mode');
+        mapSection?.classList.remove('mobile-map-active');
+        listingsSection?.classList.remove('mobile-hidden');
+        mvtButtons.forEach(b => b.classList.remove('mvt-active'));
+        if (mode === 'list') {
+            document.getElementById('mvt-list')?.classList.add('mvt-active');
+            document.body.classList.remove('mobile-map-only');
+        } else if (mode === 'split') {
+            document.getElementById('mvt-split')?.classList.add('mvt-active');
+            mainContainer?.classList.add('split-mode');
+            document.body.classList.remove('mobile-map-only');
+            if (map) setTimeout(() => map.invalidateSize(), 150);
+        } else if (mode === 'map') {
+            document.getElementById('mvt-map')?.classList.add('mvt-active');
+            mapSection?.classList.add('mobile-map-active');
+            listingsSection?.classList.add('mobile-hidden');
+            document.body.classList.add('mobile-map-only');
+            if (map) setTimeout(() => map.invalidateSize(), 150);
+        }
+        localStorage.setItem('mobileViewMode', mode);
+    }
+
+    mvtButtons.forEach(btn => btn.addEventListener('click', () => applyMobileMode(btn.dataset.mode)));
+
+    const isMobile = () => window.innerWidth <= 992;
+    if (isMobile()) {
+        applyMobileMode(localStorage.getItem('mobileViewMode') || 'split');
+        const initialOverlay = document.getElementById('initial-mode-overlay');
+        if (initialOverlay) {
+            initialOverlay.style.display = 'flex';
+            document.querySelectorAll('.overlay-mode-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    currentMode = e.target.dataset.mode;
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
+                    initialOverlay.style.display = 'none';
+                    fetchListings();
+                });
+            });
+        }
+    } else {
+        const ov = document.getElementById('initial-mode-overlay');
+        if (ov) ov.style.display = 'none';
+    }
+
+    window.addEventListener('resize', () => {
+        if (!isMobile()) {
+            mainContainer?.classList.remove('split-mode');
+            mapSection?.classList.remove('mobile-map-active');
+            listingsSection?.classList.remove('mobile-hidden');
+            if (map) setTimeout(() => map.invalidateSize(), 200);
+        }
+    });
+
+    // --- Price Slider (mobile) ---
+    const priceSlider = document.getElementById('price-slider');
+    const minPriceInput = document.getElementById('filter-min-price');
+    const maxPriceInput = document.getElementById('filter-max-price');
+    const priceDisplay = document.getElementById('price-range-display');
+
+    if (priceSlider && typeof noUiSlider !== 'undefined') {
+        noUiSlider.create(priceSlider, {
+            start: [0, 500000], connect: true, step: 5000,
+            range: { 'min': 0, 'max': 1000000 },
+            format: { to: v => Math.round(v), from: v => Number(v) }
+        });
+        priceSlider.noUiSlider.on('update', function(values, handle) {
+            if (handle === 0) { if(minPriceInput) minPriceInput.value = values[0]; }
+            else { if(maxPriceInput) maxPriceInput.value = values[1] === '1000000' ? '' : values[1]; }
+            const minD = Number(values[0]).toLocaleString();
+            const maxD = values[1] === '1000000' ? '1M+' : Number(values[1]).toLocaleString();
+            if (priceDisplay) priceDisplay.innerText = 'Rs. ' + minD + ' - Rs. ' + maxD;
+        });
+        priceSlider.noUiSlider.on('change', () => fetchListings());
+    }
+
+    // --- Mobile Filter Modal ---
+    const mobileFilterBtn = document.getElementById('mobile-filter-btn');
+    const filtersModal = document.getElementById('filters-modal');
+    const closeFiltersBtn = document.getElementById('close-filters-btn');
+
+    if (mobileFilterBtn && filtersModal) {
+        mobileFilterBtn.addEventListener('click', () => { filtersModal.classList.add('active'); document.body.style.overflow = 'hidden'; });
+    }
+    if (closeFiltersBtn && filtersModal) {
+        closeFiltersBtn.addEventListener('click', () => { filtersModal.classList.remove('active'); document.body.style.overflow = ''; fetchListings(); });
+    }
+
+    // --- Buy/Rent Toggle (ALL mode buttons synced) ---
+    let currentMode = 'Rent';
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            currentMode = e.target.dataset.mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
+            fetchListings();
+        });
+    });
+
+    // --- Fetch & Render ---
+    const grid = document.getElementById('listings-grid');
+
+    const fetchListings = async () => {
+        try {
+            const search = getVal('search-text', 'search-text-mobile');
+            const type = getVal('filter-type', 'filter-type-mobile');
+            const location = getVal('filter-location', 'filter-location-mobile');
+            const beds = getVal('filter-beds', 'filter-beds-mobile');
+            const baths = getVal('filter-baths', 'filter-baths-mobile');
+            const min_price = minPriceInput?.value || '';
+            const max_price = maxPriceInput?.value || '';
+            const sort = getVal('filter-sort', 'filter-sort-mobile');
+            const listing_mode = currentMode;
+
+            const params = new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
+            const res = await fetch('api/get_apartments.php?' + params.toString());
+            const data = await res.json();
+            
+            if (grid) {
+                grid.innerHTML = '';
+                if (data.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">No properties match your search.</p>';
+                } else {
+                    data.forEach(prop => {
+                        const card = document.createElement('div');
+                        card.className = 'property-card';
+                        let typeIcon = '🏢', defaultImg = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
+                        if (prop.type === 'Land') { typeIcon = '🌿'; defaultImg = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=800'; }
+                        else if (prop.type === 'House' || prop.type === 'Villa') { typeIcon = '🏠'; defaultImg = 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800'; }
+                        
+                        let imgs = [defaultImg];
+                        try { const p = JSON.parse(prop.images); if (p && p.length > 0) imgs = p; } catch(e) {}
+
+                        let imagesHtml = '', dotsHtml = '';
+                        imgs.forEach((img, i) => {
+                            imagesHtml += '<img src="' + img + '" alt="' + prop.title + '" class="property-img card-img-slide" loading="lazy">';
+                            if (imgs.length > 1) dotsHtml += '<div class="card-dot ' + (i === 0 ? 'active' : '') + '"></div>';
+                        });
+                        const sliderNavHtml = imgs.length > 1 ? '<button class="card-slider-nav card-slider-prev"><i class="fa-solid fa-chevron-left"></i></button><button class="card-slider-nav card-slider-next"><i class="fa-solid fa-chevron-right"></i></button><div class="card-slider-dots">' + dotsHtml + '</div>' : '';
+                        const modeBadge = '<span class="mode-badge">' + (prop.listing_mode || currentMode) + '</span>';
+                        const bedsBathsHtml = prop.type === 'Land' ? '<span><i class="fa-solid fa-ruler-combined"></i> ' + (prop.size_perches || '-') + ' Perches</span>' : '<span><i class="fa-solid fa-bed"></i> ' + prop.bedrooms + ' Bed</span><span><i class="fa-solid fa-bath"></i> ' + prop.baths + ' Bath</span>';
+
+                        card.innerHTML = '<div class="img-container">' + modeBadge + '<span class="type-tag">' + typeIcon + ' ' + prop.type + '</span><div class="card-slider-wrapper">' + imagesHtml + '</div>' + sliderNavHtml + '<div class="price-tag">Rs. ' + Number(prop.price).toLocaleString() + '</div></div><div class="property-info"><h3 class="property-title">' + prop.title + '</h3><div class="property-location"><i class="fa-solid fa-location-dot"></i> ' + prop.address + '</div><div class="property-metrics">' + bedsBathsHtml + '</div></div>';
+                        
+                        let preventCardClick = false;
+                        if (imgs.length > 1) {
+                            let currSlide = 0;
+                            const wrapper = card.querySelector('.card-slider-wrapper');
+                            const dots = card.querySelectorAll('.card-dot');
+                            const updateSlider = () => { wrapper.style.transform = 'translateX(-' + (currSlide * 100) + '%)'; dots.forEach(d => d.classList.remove('active')); if(dots[currSlide]) dots[currSlide].classList.add('active'); };
+                            card.querySelector('.card-slider-next').addEventListener('click', (e) => { e.stopPropagation(); currSlide = (currSlide + 1) % imgs.length; updateSlider(); });
+                            card.querySelector('.card-slider-prev').addEventListener('click', (e) => { e.stopPropagation(); currSlide = (currSlide - 1 + imgs.length) % imgs.length; updateSlider(); });
+                            let startX = 0, currentX = 0, isDragging = false;
+                            wrapper.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; wrapper.style.transition = 'none'; }, {passive:true});
+                            wrapper.addEventListener('touchmove', (e) => { if(!isDragging) return; currentX = e.touches[0].clientX; wrapper.style.transform = 'translateX(' + (-(currSlide*100) + ((currentX-startX)/wrapper.offsetWidth*100)) + '%)'; }, {passive:true});
+                            wrapper.addEventListener('touchend', () => { if(!isDragging) return; isDragging = false; wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25,1,0.5,1)'; const diff = currentX - startX; if (Math.abs(diff) > 30) { preventCardClick = true; setTimeout(() => preventCardClick = false, 100); if (diff < 0) currSlide = Math.min(currSlide+1, imgs.length-1); else currSlide = Math.max(currSlide-1, 0); } updateSlider(); });
+                        }
+                        card.style.cursor = 'pointer';
+                        card.addEventListener('click', () => { if(!preventCardClick) window.location.href = 'apartment.php?id=' + prop.id; });
+                        grid.appendChild(card);
+                    });
+                }
+            }
+
+            // Map markers
+            if(mapElement && markersLayer) {
+                markersLayer.clearLayers();
+                data.forEach(prop => {
+                    const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(Number(prop.price).toLocaleString()) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
+                    const marker = L.marker([prop.lat, prop.lng], {icon: priceIcon}).addTo(markersLayer);
+                    let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
+                    try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch(e) {}
+                    marker.bindPopup('<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'"><img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;"><h4 style="margin:0;font-size:1rem;">' + prop.title + '</h4><p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + Number(prop.price).toLocaleString() + '</p><span style="font-size:0.8rem;color:var(--text-secondary);">' + prop.type + ' | ' + prop.bedrooms + ' Bed | ' + prop.baths + ' Bath</span><div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div></div>', { closeButton: true, minWidth: 220 });
+                });
+            }
+        } catch (e) {
+            console.error('Fetch error:', e);
+            if(grid) grid.innerHTML = '<p style="color:red;grid-column:span 2;">Failed to load properties.</p>';
+        }
+    };
+
+    function escapeHTML(str) { return new Option(str).innerHTML; }
+    if(grid) fetchListings();
+
+    // Desktop controls
+    const applyBtn = document.getElementById('apply-filters');
+    if (applyBtn) applyBtn.addEventListener('click', fetchListings);
+    document.querySelectorAll('.filter-bar-desktop .filter-select').forEach(s => s.addEventListener('change', fetchListings));
+    const minSel = document.getElementById('filter-min-price-select');
+    const maxSel = document.getElementById('filter-max-price-select');
+    if (minSel) minSel.addEventListener('change', () => { if(minPriceInput) minPriceInput.value = minSel.value; fetchListings(); });
+    if (maxSel) maxSel.addEventListener('change', () => { if(maxPriceInput) maxPriceInput.value = maxSel.value; fetchListings(); });
+
+    // Mobile apply
+    const applyMob = document.getElementById('apply-filters-mobile');
+    if (applyMob) applyMob.addEventListener('click', fetchListings);
+
+    // Clear all
+    function clearAll() {
+        ['search-text','search-text-mobile'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+        ['filter-type','filter-type-mobile','filter-location','filter-location-mobile','filter-beds','filter-beds-mobile','filter-baths','filter-baths-mobile'].forEach(id => { const el = document.getElementById(id); if(el) el.value = 'All'; });
+        ['filter-sort','filter-sort-mobile'].forEach(id => { const el = document.getElementById(id); if(el) el.value = 'newest'; });
+        if(minSel) minSel.value = ''; if(maxSel) maxSel.value = '';
+        if(minPriceInput) minPriceInput.value = ''; if(maxPriceInput) maxPriceInput.value = '';
+        if (priceSlider && priceSlider.noUiSlider) priceSlider.noUiSlider.set([0, 500000]);
+        fetchListings();
+    }
+    const clearBtn = document.getElementById('clear-filters');
+    const clearMob = document.getElementById('clear-filters-mobile');
+    if (clearBtn) clearBtn.addEventListener('click', clearAll);
+    if (clearMob) clearMob.addEventListener('click', clearAll);
+});
