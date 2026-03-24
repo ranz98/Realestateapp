@@ -69,7 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -219,6 +218,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: inherit;
         }
 
+        /* ── Map Container Responsive ── */
+        .map-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #selection-map {
+            height: 350px;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            width: 100%;
+        }
+
+        /* ── Map Type Toggle ── */
+        .map-type-toggle {
+            display: flex;
+            background: var(--bg-main, #fff);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-glass, #e2e8f0);
+        }
+
+        .map-type-toggle button {
+            padding: 6px 14px;
+            border: none;
+            background: transparent;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary, #666);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .map-type-toggle button.active {
+            background: var(--primary, #4f46e5);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .map-type-toggle button:not(.active):hover {
+            background: rgba(79, 70, 229, 0.08);
+        }
+
         /* ── Responsive ── */
         @media (max-width: 768px) {
             .type-selector .type-option {
@@ -240,6 +285,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .mode-selector .mode-option {
                 padding: 0.6rem;
                 font-size: 0.85rem;
+            }
+
+            #selection-map {
+                height: 260px;
+            }
+
+            .map-type-toggle button {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #selection-map {
+                height: 220px;
+            }
+
+            .map-type-toggle button {
+                padding: 4px 8px;
+                font-size: 0.7rem;
             }
         }
     </style>
@@ -481,7 +546,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Map Pin -->
                 <div class="input-group">
                     <label>Pin Exact Location on Map *</label>
-                    <div id="selection-map" style="height: 300px; border-radius: 8px; border: 1px solid var(--border-glass);"></div>
+                    <div class="map-container">
+                        <div id="selection-map"></div>
+                    </div>
                     <input type="hidden" name="lat" id="lat" value="6.9271">
                     <input type="hidden" name="lng" id="lng" value="79.8612">
                     <small style="color: var(--text-secondary);">Click or drag the marker to your property's exact location.</small>
@@ -503,8 +570,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </footer>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- Google Maps JavaScript API with Places library -->
+    <!-- Google Maps JavaScript API with Places library -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=<?php echo GOOGLE_MAPS_API_KEY; ?>&libraries=places&callback=initMap" async defer></script>
+
     <script>
+        // ── Google Maps Global Variables ──
+        let map, marker, autocomplete;
+
+        // ── Google Maps Init (called by API callback) ──
+        function initMap() {
+            const defaultPos = { lat: 6.9271, lng: 79.8612 }; // Colombo, Sri Lanka
+
+            map = new google.maps.Map(document.getElementById('selection-map'), {
+                center: defaultPos,
+                zoom: 13,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+                gestureHandling: 'cooperative',
+                styles: [
+                    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                ]
+            });
+
+            // ── Custom Map / Satellite Toggle ──
+            const toggleDiv = document.createElement('div');
+            toggleDiv.className = 'map-type-toggle';
+            toggleDiv.style.margin = '10px';
+
+            const btnMap = document.createElement('button');
+            btnMap.textContent = 'Map';
+            btnMap.className = 'active';
+            btnMap.type = 'button';
+
+            const btnSat = document.createElement('button');
+            btnSat.textContent = 'Satellite';
+            btnSat.type = 'button';
+
+            toggleDiv.appendChild(btnMap);
+            toggleDiv.appendChild(btnSat);
+
+            btnMap.addEventListener('click', function () {
+                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                btnMap.classList.add('active');
+                btnSat.classList.remove('active');
+                map.setOptions({
+                    styles: [
+                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                    ]
+                });
+            });
+
+            btnSat.addEventListener('click', function () {
+                map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+                btnSat.classList.add('active');
+                btnMap.classList.remove('active');
+                map.setOptions({ styles: [] });
+            });
+
+            map.controls[google.maps.ControlPosition.TOP_RIGHT].push(toggleDiv);
+
+            // Draggable marker
+            marker = new google.maps.Marker({
+                position: defaultPos,
+                map: map,
+                draggable: true,
+                animation: google.maps.Animation.DROP,
+                title: 'Drag to exact location'
+            });
+
+            const latInput = document.getElementById('lat');
+            const lngInput = document.getElementById('lng');
+
+            // Update hidden inputs on marker drag
+            marker.addListener('dragend', function () {
+                const pos = marker.getPosition();
+                latInput.value = pos.lat().toFixed(8);
+                lngInput.value = pos.lng().toFixed(8);
+            });
+
+            // Click on map to move marker
+            map.addListener('click', function (e) {
+                marker.setPosition(e.latLng);
+                latInput.value = e.latLng.lat().toFixed(8);
+                lngInput.value = e.latLng.lng().toFixed(8);
+            });
+
+            // ── Places Autocomplete on address input ──
+            const addressInput = document.getElementById('address-input');
+            autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                componentRestrictions: { country: 'lk' }, // Restrict to Sri Lanka
+                fields: ['geometry', 'formatted_address']
+            });
+
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) return;
+
+                const loc = place.geometry.location;
+                map.setCenter(loc);
+                map.setZoom(16);
+                marker.setPosition(loc);
+                marker.setAnimation(google.maps.Animation.DROP);
+
+                latInput.value = loc.lat().toFixed(8);
+                lngInput.value = loc.lng().toFixed(8);
+            });
+
+            // ── Geocode Button (manual fallback) ──
+            document.getElementById('geocode-btn').addEventListener('click', function () {
+                const query = addressInput.value.trim();
+                if (!query) { alert('Please enter an address to locate.'); return; }
+
+                this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
+                const geocoder = new google.maps.Geocoder();
+                const btn = this;
+
+                geocoder.geocode({ address: query + ', Sri Lanka' }, function (results, status) {
+                    btn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Locate';
+
+                    if (status === 'OK' && results[0]) {
+                        const loc = results[0].geometry.location;
+                        map.setCenter(loc);
+                        map.setZoom(16);
+                        marker.setPosition(loc);
+                        marker.setAnimation(google.maps.Animation.DROP);
+
+                        latInput.value = loc.lat().toFixed(8);
+                        lngInput.value = loc.lng().toFixed(8);
+                    } else {
+                        alert('Could not find that address. Please drag the marker manually.');
+                    }
+                });
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
 
             // ── Theme Toggle ──
@@ -552,51 +753,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             }
 
-            // ── Map Init ──
-            const map = L.map('selection-map').setView([6.9271, 79.8612], 12);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            }).addTo(map);
-
-            let marker = L.marker([6.9271, 79.8612], { draggable: true }).addTo(map);
-            const latInput = document.getElementById('lat');
-            const lngInput = document.getElementById('lng');
-
-            marker.on('dragend', function () {
-                const pos = marker.getLatLng();
-                latInput.value = pos.lat.toFixed(8);
-                lngInput.value = pos.lng.toFixed(8);
-            });
-
-            // ── Geocoding ──
-            const geocodeBtn = document.getElementById('geocode-btn');
-            const addressInput = document.getElementById('address-input');
-
-            geocodeBtn.addEventListener('click', async () => {
-                const query = addressInput.value.trim();
-                if (!query) return alert('Please enter an address to locate.');
-
-                geocodeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Sri Lanka')}&limit=1`);
-                    const data = await response.json();
-
-                    if (data && data.length > 0) {
-                        const { lat, lon } = data[0];
-                        const pos = new L.LatLng(lat, lon);
-                        map.setView(pos, 15);
-                        marker.setLatLng(pos);
-                        latInput.value = lat;
-                        lngInput.value = lon;
-                    } else {
-                        alert('Could not find that address on the map. You can drag the marker manually.');
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert('Geocoding service failed.');
-                }
-                geocodeBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Locate';
-            });
 
             // ── Dynamic Fields per Property Type ──
             const typeRadios = document.querySelectorAll('input[name="type"]');

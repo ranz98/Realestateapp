@@ -1,70 +1,771 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>List Apartment - MyHomeMyLand.LK</title>
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Type Selector ── */
+        .type-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .type-selector .type-option {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
+            border: 2px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 0.8rem 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .type-selector .type-option:hover {
+            border-color: var(--primary);
+        }
+
+        .type-selector input[type="radio"] {
+            display: none;
+        }
+
+        .type-selector .type-option-inner {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+            pointer-events: none;
+        }
+
+        .type-selector .type-option-inner .type-icon {
+            font-size: 1.4rem;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        .type-selector input[type="radio"]:checked+.type-option-inner {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .type-selector label:has(input[type="radio"]:checked) .type-option,
+        .type-selector .type-option.selected {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.06);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* ── Mode Selector ── */
+        .mode-selector {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .mode-selector .mode-option {
+            flex: 1;
+            text-align: center;
+            padding: 0.8rem;
+            border: 2px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            display: block;
+        }
+
+        .mode-selector .mode-option:hover {
+            border-color: var(--primary);
+        }
+
+        .mode-selector input[type="radio"] {
+            display: none;
+        }
+
+        .mode-selector label:has(input[type="radio"]:checked) .mode-option,
+        .mode-selector .mode-option.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ── Features Grid ── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.5rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-main);
+            user-select: none;
+        }
+
+        .feature-item:hover {
+            border-color: var(--primary);
+        }
+
+        .feature-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .feature-item .feature-label {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .feature-item:has(input:checked) {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.06);
+        }
+
+        /* ── Image Upload ── */
+        .image-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-preview-grid img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid var(--border-glass);
+        }
+
+        /* ── Map Container Responsive ── */
+        .map-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #selection-map {
+            height: 350px;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
+            width: 100%;
+        }
+
+        /* ── Map Type Toggle ── */
+        .map-type-toggle {
+            display: flex;
+            background: var(--bg-main, #fff);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-glass, #e2e8f0);
+        }
+
+        .map-type-toggle button {
+            padding: 6px 14px;
+            border: none;
+            background: transparent;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary, #666);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .map-type-toggle button.active {
+            background: var(--primary, #4f46e5);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .map-type-toggle button:not(.active):hover {
+            background: rgba(79, 70, 229, 0.08);
+        }
+
+        /* ── Geocode autocomplete pac styling ── */
+        .pac-container {
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            font-family: 'Outfit', sans-serif;
+            border: 1px solid var(--border-glass, #e2e8f0);
+            margin-top: 4px;
+        }
+
+        /* ── Fix label bleed ── */
+        .type-selector label,
+        .mode-selector label,
+        .feature-item {
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .type-selector .type-option {
+                min-width: 70px;
+                padding: 0.6rem 0.3rem;
+            }
+
+            .type-selector .type-option-inner {
+                font-size: 0.75rem;
+            }
+
+            .type-selector .type-option-inner .type-icon {
+                font-size: 1.2rem;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .mode-selector {
+                gap: 0.5rem;
+            }
+
+            .mode-selector .mode-option {
+                padding: 0.6rem;
+                font-size: 0.85rem;
+            }
+
+            #selection-map {
+                height: 260px;
+            }
+
+            .map-type-toggle button {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #selection-map {
+                height: 220px;
+            }
+
+            .map-type-toggle button {
+                padding: 4px 8px;
+                font-size: 0.7rem;
+            }
+        }
+    </style>
 </head>
-<body>
-    <nav class="navbar">
-        <div class="logo">
-            <i class="fa-solid fa-house-chimney-window"></i> Estato
-        </div>
-        <button class="mobile-menu-btn" aria-label="Toggle Menu">
-            <i class="fa-solid fa-bars"></i>
-        </button>
-        <div class="nav-links">
-            <a href="index.html">Explore</a>
-            <a href="about.html">About Us</a>
-            <a href="list-apartment.html" class="active btn-primary">List Apartment</a>
-        </div>
-    </nav>
+
+<body class="form-page">
+    <header class="site-header">
+        <nav class="navbar">
+            <div class="logo">
+                <i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK
+            </div>
+            <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <div class="nav-links">
+                <a href="index.php">Explore</a>
+                <a href="dashboard.php">Dashboard</a>
+                <a href="logout.php">Logout</a>
+            </div>
+        </nav>
+    </header>
+
     <main class="page-container form-page">
         <div class="form-wrapper">
-            <h2>List Your Property Form</h2>
-            <p>Reach thousands of potential renters instantly.</p>
-            <form id="listing-form" class="listing-form">
+            <h2 style="margin-bottom: 0.3rem;">List Your Property</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Fill in all the details below accurately.
+            </p>
+            <form method="POST" class="listing-form" enctype="multipart/form-data">
+
+                <!-- Listing Mode -->
                 <div class="input-group">
-                    <label for="title">Listing Title</label>
-                    <input type="text" id="title" placeholder="e.g. Modern Studio in Downtown" required>
+                    <label>Listing Mode *</label>
+                    <div class="mode-selector" id="mode-selector">
+                        <label>
+                            <input type="radio" name="listing_mode" value="Rent" checked>
+                            <div class="mode-option selected">Rent</div>
+                        </label>
+                        <label>
+                            <input type="radio" name="listing_mode" value="Buy">
+                            <div class="mode-option">Buy</div>
+                        </label>
+                    </div>
                 </div>
+
+                <!-- Property Type -->
+                <div class="input-group">
+                    <label>Property Type *</label>
+                    <div class="type-selector" id="type-selector">
+                        <label>
+                            <input type="radio" name="type" value="Apartment" checked>
+                            <div class="type-option selected">
+                                <div class="type-option-inner"><span class="type-icon">🏢</span>Apartment</div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="House">
+                            <div class="type-option">
+                                <div class="type-option-inner"><span class="type-icon">🏠</span>House</div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Villa">
+                            <div class="type-option">
+                                <div class="type-option-inner"><span class="type-icon">🏡</span>Villa</div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Commercial">
+                            <div class="type-option">
+                                <div class="type-option-inner"><span class="type-icon">🏪</span>Commercial</div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="type" value="Land">
+                            <div class="type-option">
+                                <div class="type-option-inner"><span class="type-icon">🌿</span>Land</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Title & Price -->
                 <div class="input-row">
                     <div class="input-group">
-                        <label for="price">Monthly Rent ($)</label>
-                        <input type="number" id="price" placeholder="2500" required>
+                        <label>Listing Title *</label>
+                        <input type="text" name="title" placeholder="e.g. Premium 2BR Fully Furnished Apartment"
+                            required>
                     </div>
                     <div class="input-group">
-                        <label for="beds">Bedrooms</label>
-                        <select id="beds" required>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3+</option>
+                        <label>Price (Rs.) *</label>
+                        <input type="number" name="price" placeholder="75000" required>
+                    </div>
+                </div>
+
+                <!-- Beds & Baths -->
+                <div class="input-row" id="row-beds-baths">
+                    <div class="input-group">
+                        <label>Bedrooms *</label>
+                        <select name="beds" id="val-beds">
                             <option value="studio">Studio</option>
+                            <option value="1">1 Bedroom</option>
+                            <option value="2" selected>2 Bedrooms</option>
+                            <option value="3">3 Bedrooms</option>
+                            <option value="4+">4+ Bedrooms</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Bathrooms *</label>
+                        <select name="baths" id="val-baths">
+                            <option value="1">1 Bathroom</option>
+                            <option value="2" selected>2 Bathrooms</option>
+                            <option value="3">3 Bathrooms</option>
+                            <option value="4+">4+ Bathrooms</option>
                         </select>
                     </div>
                 </div>
+
+                <!-- Size & Complex -->
+                <div class="input-row">
+                    <div class="input-group" id="grp-sqft">
+                        <label>Size (sqft)</label>
+                        <input type="number" name="size_sqft" placeholder="e.g. 842">
+                    </div>
+                    <div class="input-group" id="grp-perches" style="display: none;">
+                        <label>Size (perches) *</label>
+                        <input type="number" step="0.1" name="size_perches" placeholder="e.g. 10.5" id="val-perches">
+                    </div>
+                    <div class="input-group" id="grp-complex">
+                        <label>Apartment Complex</label>
+                        <input type="text" name="apartment_complex" placeholder="e.g. Luna Tower, Colombo 02">
+                    </div>
+                </div>
+
+                <!-- Completion & Furnished Status -->
+                <div class="input-row" id="row-status">
+                    <div class="input-group">
+                        <label>Completion Status *</label>
+                        <select name="completion_status" required>
+                            <option value="Ready">Ready</option>
+                            <option value="Under Construction">Under Construction</option>
+                            <option value="Off-Plan">Off-Plan</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Furnished Status *</label>
+                        <select name="furnished_status" required>
+                            <option value="Fully Furnished">Fully Furnished</option>
+                            <option value="Semi Furnished">Semi Furnished</option>
+                            <option value="Unfurnished">Unfurnished</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Seller Contact -->
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Seller Email *</label>
+                        <input type="email" name="seller_email" placeholder="email@example.com" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Seller Phone *</label>
+                        <input type="tel" name="seller_phone" placeholder="e.g. 077 123 4567" required>
+                    </div>
+                </div>
+
+                <!-- Description -->
                 <div class="input-group">
-                    <label for="address">Full Address</label>
-                    <input type="text" id="address" placeholder="123 Main St, New York, NY" required>
+                    <label>Description *</label>
+                    <textarea name="description" rows="5" placeholder="Describe the property in detail..."
+                        required></textarea>
                 </div>
+
+                <!-- Image Upload -->
                 <div class="input-group">
-                    <label>Description</label>
-                    <textarea rows="4" placeholder="Tell us about the property features..." required></textarea>
+                    <label>Upload Images (Max 5)</label>
+                    <input type="file" name="images[]" id="image-upload" multiple accept="image/*"
+                        style="padding: 0.5rem;">
+                    <div id="image-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: none;">
+                        You can only upload a maximum of 5 images.</div>
+                    <div class="image-preview-grid" id="image-preview"></div>
                 </div>
-                <div class="input-group dropzone">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <p>Drag & drop photos here or <span>browse</span></p>
+
+                <!-- Features & Amenities -->
+                <div class="input-group">
+                    <label>Features & Amenities</label>
+                    <div class="features-grid">
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="A/C"><span
+                                class="feature-label">A/C</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Pool"><span
+                                class="feature-label">Pool</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Gym"><span
+                                class="feature-label">Gym</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Parking"><span
+                                class="feature-label">Parking</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Furnished"><span
+                                class="feature-label">Furnished</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Balcony"><span
+                                class="feature-label">Balcony</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Security"><span
+                                class="feature-label">24/7 Security</span></label>
+                        <label class="feature-item"><input type="checkbox" name="features[]" value="Generator"><span
+                                class="feature-label">Generator</span></label>
+                    </div>
                 </div>
-                <button type="submit" class="btn-primary w-100 mt-3">Submit Listing</button>
+
+                <!-- Address + Geocode -->
+                <div class="input-group">
+                    <label>Full Address *</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="address" id="address-input" placeholder="e.g. Union Place, Colombo 02"
+                            required style="flex: 1;">
+                        <button type="button" id="geocode-btn" class="btn-primary" style="white-space: nowrap;">
+                            <i class="fa-solid fa-location-crosshairs"></i> Locate
+                        </button>
+                    </div>
+                    <small style="color: var(--text-secondary); margin-top: 5px; display: block;">
+                        Start typing to get address suggestions, or click 'Locate' to drop a pin.
+                    </small>
+                </div>
+
+                <!-- Google Map -->
+                <div class="input-group">
+                    <label>Pin Exact Location on Map *</label>
+                    <div class="map-container">
+                        <div id="selection-map"></div>
+                    </div>
+                    <input type="hidden" name="lat" id="lat" value="6.9271">
+                    <input type="hidden" name="lng" id="lng" value="79.8612">
+                    <small style="color: var(--text-secondary);">Click on the map or drag the marker to your property's
+                        exact location.</small>
+                </div>
+
+                <button type="submit" class="btn-primary"
+                    style="width:100%; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem;">
+                    Submit Listing for Approval
+                </button>
             </form>
         </div>
     </main>
+
+    <footer class="site-footer">
+        <div class="footer-container">
+            <p>&copy; 2025 MyHomeMyLand.LK. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact Us</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Google Maps JavaScript API with Places library -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwXIu1h80V9Xapeyre_obRvjElwsi7dFg&libraries=places&callback=initMap"
+        async defer></script>
+
+    <script>
+        // ── Google Maps Init (called by API callback) ──
+        let map, marker, autocomplete;
+
+        function initMap() {
+            const defaultPos = { lat: 6.9271, lng: 79.8612 }; // Colombo, Sri Lanka
+
+            map = new google.maps.Map(document.getElementById('selection-map'), {
+                center: defaultPos,
+                zoom: 13,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+                gestureHandling: 'cooperative',
+                styles: [
+                    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                ]
+            });
+
+            // ── Custom Map / Satellite Toggle ──
+            const toggleDiv = document.createElement('div');
+            toggleDiv.className = 'map-type-toggle';
+            toggleDiv.style.margin = '10px';
+
+            const btnMap = document.createElement('button');
+            btnMap.textContent = 'Map';
+            btnMap.className = 'active';
+            btnMap.type = 'button';
+
+            const btnSat = document.createElement('button');
+            btnSat.textContent = 'Satellite';
+            btnSat.type = 'button';
+
+            toggleDiv.appendChild(btnMap);
+            toggleDiv.appendChild(btnSat);
+
+            btnMap.addEventListener('click', function () {
+                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+                btnMap.classList.add('active');
+                btnSat.classList.remove('active');
+                // Re-apply custom styles for roadmap view
+                map.setOptions({
+                    styles: [
+                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                    ]
+                });
+            });
+
+            btnSat.addEventListener('click', function () {
+                map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+                btnSat.classList.add('active');
+                btnMap.classList.remove('active');
+                // Clear custom styles for satellite view (they don't apply well)
+                map.setOptions({ styles: [] });
+            });
+
+            map.controls[google.maps.ControlPosition.TOP_RIGHT].push(toggleDiv);
+
+            // Draggable marker
+            marker = new google.maps.Marker({
+                position: defaultPos,
+                map: map,
+                draggable: true,
+                animation: google.maps.Animation.DROP,
+                title: 'Drag to exact location'
+            });
+
+            // Update hidden inputs on marker drag
+            marker.addListener('dragend', function () {
+                const pos = marker.getPosition();
+                document.getElementById('lat').value = pos.lat().toFixed(8);
+                document.getElementById('lng').value = pos.lng().toFixed(8);
+            });
+
+            // Click on map to move marker
+            map.addListener('click', function (e) {
+                marker.setPosition(e.latLng);
+                document.getElementById('lat').value = e.latLng.lat().toFixed(8);
+                document.getElementById('lng').value = e.latLng.lng().toFixed(8);
+            });
+
+            // ── Places Autocomplete on address input ──
+            const addressInput = document.getElementById('address-input');
+            autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                componentRestrictions: { country: 'lk' }, // Restrict to Sri Lanka
+                fields: ['geometry', 'formatted_address']
+            });
+
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) return;
+
+                const loc = place.geometry.location;
+                map.setCenter(loc);
+                map.setZoom(16);
+                marker.setPosition(loc);
+                marker.setAnimation(google.maps.Animation.DROP);
+
+                document.getElementById('lat').value = loc.lat().toFixed(8);
+                document.getElementById('lng').value = loc.lng().toFixed(8);
+            });
+
+            // ── Geocode Button (manual fallback) ──
+            document.getElementById('geocode-btn').addEventListener('click', function () {
+                const query = addressInput.value.trim();
+                if (!query) { alert('Please enter an address to locate.'); return; }
+
+                this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
+                const geocoder = new google.maps.Geocoder();
+                const btn = this;
+
+                geocoder.geocode({ address: query + ', Sri Lanka' }, function (results, status) {
+                    btn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Locate';
+
+                    if (status === 'OK' && results[0]) {
+                        const loc = results[0].geometry.location;
+                        map.setCenter(loc);
+                        map.setZoom(16);
+                        marker.setPosition(loc);
+                        marker.setAnimation(google.maps.Animation.DROP);
+
+                        document.getElementById('lat').value = loc.lat().toFixed(8);
+                        document.getElementById('lng').value = loc.lng().toFixed(8);
+                    } else {
+                        alert('Could not find that address. Please drag the marker manually.');
+                    }
+                });
+            });
+        }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ── Theme Toggle ──
+            const themeBtn = document.getElementById('theme-toggle');
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            if (currentTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            if (themeBtn) {
+                themeBtn.addEventListener('click', () => {
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    if (isDark) {
+                        document.documentElement.removeAttribute('data-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                });
+            }
+
+            // ── Type Selector ──
+            const typeSelector = document.getElementById('type-selector');
+            if (typeSelector) {
+                typeSelector.addEventListener('click', (e) => {
+                    const label = e.target.closest('label');
+                    if (!label) return;
+                    typeSelector.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('selected'));
+                    label.querySelector('.type-option').classList.add('selected');
+                });
+            }
+
+            // ── Mode Selector ──
+            const modeSelector = document.getElementById('mode-selector');
+            if (modeSelector) {
+                modeSelector.addEventListener('click', (e) => {
+                    const label = e.target.closest('label');
+                    if (!label) return;
+                    modeSelector.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
+                    label.querySelector('.mode-option').classList.add('selected');
+                });
+            }
+
+            // ── Dynamic Fields per Property Type ──
+            const typeRadios = document.querySelectorAll('input[name="type"]');
+            const rowBedsBaths = document.getElementById('row-beds-baths');
+            const rowStatus = document.getElementById('row-status');
+            const grpComplex = document.getElementById('grp-complex');
+            const grpSqft = document.getElementById('grp-sqft');
+            const grpPerches = document.getElementById('grp-perches');
+            const valBeds = document.getElementById('val-beds');
+            const valBaths = document.getElementById('val-baths');
+            const valPerches = document.getElementById('val-perches');
+
+            //                    beds   baths  sqft   complex status perches
+            const fieldRules = {
+                Apartment: [true, true, true, true, true, false],
+                House: [true, true, true, false, true, false],
+                Villa: [true, true, true, false, true, false],
+                Commercial: [false, false, true, false, true, false],
+                Land: [false, false, false, false, false, true],
+            };
+
+            function applyTypeRules(type) {
+                const [beds, baths, sqft, complex, status, perches] = fieldRules[type] || fieldRules.Apartment;
+                rowBedsBaths.style.display = beds ? 'grid' : 'none';
+                grpSqft.style.display = sqft ? 'block' : 'none';
+                grpComplex.style.display = complex ? 'block' : 'none';
+                rowStatus.style.display = status ? 'grid' : 'none';
+                grpPerches.style.display = perches ? 'block' : 'none';
+                beds ? valBeds.setAttribute('required', '') : valBeds.removeAttribute('required');
+                baths ? valBaths.setAttribute('required', '') : valBaths.removeAttribute('required');
+                perches ? valPerches.setAttribute('required', '') : valPerches.removeAttribute('required');
+            }
+
+            typeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => applyTypeRules(e.target.value));
+            });
+
+            // ── Image Upload (Max 5 + Preview) ──
+            const imageUpload = document.getElementById('image-upload');
+            const imagePreview = document.getElementById('image-preview');
+            const imageError = document.getElementById('image-error');
+
+            imageUpload.addEventListener('change', function () {
+                imagePreview.innerHTML = '';
+                if (this.files.length > 5) {
+                    imageError.style.display = 'block';
+                    this.value = '';
+                    return;
+                }
+                imageError.style.display = 'none';
+                Array.from(this.files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            imagePreview.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
+
 </html>
