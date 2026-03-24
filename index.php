@@ -23,7 +23,7 @@ require_once 'auth_check.php';
     <header class="site-header">
         <nav class="navbar">
 <a href="index.php" class="logo" style="color: #000000; text-decoration: none;">
-    <i class="fa-solid fa-house-chimney-window" style="color: #4f46e5;"></i> MyHomeMyLand.LK
+    <i class="fa-solid fa-house-chimney-window" style="color: #0ea5e9;"></i> MyHomeMyLand.LK
 </a>
             <div class="nav-links">
                 <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
@@ -184,8 +184,10 @@ endif; ?>
                     </div>
                 </div>
             </div>
-            <div class="listings-grid" id="listings-grid">
-                <p>Loading properties...</p>
+            <div class="listings-scroll-container" id="listings-scroll-container">
+                <div class="listings-grid" id="listings-grid">
+                    <p>Loading properties...</p>
+                </div>
             </div>
         </section>
         <section class="map-section" id="map-section">

@@ -1,8 +1,8 @@
 :root {
     /* LIGHT MODE (Default) */
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --accent: #0ea5e9;
+    --primary: #0ea5e9;
+    --primary-hover: #0284c7;
+    --accent: #38bdf8;
     --bg-main: #f8fafc;
     --bg-panel: #ffffff;
     --bg-card: #ffffff;
@@ -129,7 +129,7 @@ h1, h2, h3, h4, .logo {
    BUTTONS
    ============================================ */
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    background: var(--primary);
     color: white !important;
     padding: 0.6rem 1.4rem;
     border-radius: 50px;
@@ -142,12 +142,12 @@ h1, h2, h3, h4, .logo {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
 }
 
 .btn-secondary {
@@ -166,6 +166,13 @@ h1, h2, h3, h4, .logo {
 
 .btn-secondary:hover {
     background: var(--border-glass);
+}
+
+@media (hover: hover) {
+    .btn-primary:hover, .btn-secondary:hover, .overlay-mode-btn:hover {
+        transform: translateY(-4px) scale(1.04);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+    }
 }
 
 /* --- Fluid Theme Toggle --- */
@@ -574,13 +581,13 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 
 .mvt-btn:hover {
     color: var(--primary);
-    background: rgba(79, 70, 229, 0.08);
+    background: rgba(14, 165, 233, 0.08);
 }
 
 .mvt-btn.mvt-active {
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     color: #fff;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
 }
 
 .mvt-btn i {
@@ -685,18 +692,28 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         max-width: 100%;
         width: 100%;
         height: 100%;
-        padding: 1rem;
+        padding: 0;
         position: relative;
+        overflow: hidden;
+    }
+
+    .listings-scroll-container {
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+        padding: 1rem;
     }
 
     /* --- INITIAL OVERLAY --- */
     .mode-overlay {
-        position: sticky;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.1);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        z-index: 1500;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 2000;
         display: none;
         justify-content: center;
         align-items: center;
@@ -707,18 +724,26 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         padding: 0; border: none !important; box-shadow: none !important;
         text-align: center; width: 100%;
     }
+    @keyframes pulse-subtle {
+        0% { transform: scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4); }
+        100% { transform: scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    }
     .mode-overlay-btns {
-        display: flex; gap: 1.2rem; justify-content: center; width: 100%;
+        display: flex; gap: 2.5rem; justify-content: center; width: 100%;
     }
     .overlay-mode-btn {
-        padding: 1rem 0 !important; width: 120px;
+        padding: 1rem 0 !important; width: 140px;
         font-size: 1.1rem !important; font-weight: 700 !important;
         text-transform: uppercase; letter-spacing: 1px;
-        border-radius: var(--radius-md) !important; border: none !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+        animation: pulse-subtle 2s infinite ease-in-out;
     }
-    .overlay-mode-btn[data-mode="Buy"] { background: #10b981 !important; color: white !important; }
-    .overlay-mode-btn[data-mode="Rent"] { background: #3b82f6 !important; color: white !important; }
+    .overlay-mode-btn:active {
+        transform: scale(0.96) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+    }
 
     /* Map hidden by default on mobile */
     .map-section { display: none; width: 100%; border-left: none; }
@@ -739,7 +764,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         display: flex; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
         background: var(--bg-card); padding: 6px; border-radius: 40px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.25); border: 1px solid var(--border-glass);
-        z-index: 1000; gap: 5px;
+        z-index: 2500; gap: 5px;
     }
     .mvt-btn {
         background: transparent; border: none; padding: 0.6rem 1.2rem; border-radius: 30px;
@@ -754,7 +779,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     /* --- Mobile Filters Modal --- */
     .filters-modal {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-        background: var(--bg-card); z-index: 2000; padding: 1.5rem;
+        background: var(--bg-card); z-index: 3000; padding: 1.5rem;
         flex-direction: column; display: none; overflow-y: auto;
     }
     .filters-modal.active {
