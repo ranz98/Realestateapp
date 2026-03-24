@@ -83,6 +83,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         map.options.minZoom = 7;
                         flyInCompleted = true; flyInRunning = false;
                         brandOverlay?.remove();
+
+                        // AUTO-SPLIT AFTER FLY-IN (only on mobile)
+                        if (isMobile()) {
+                            setTimeout(() => applyMobileMode('split'), 500);
+                        }
                     });
                 }, 800);
             });
@@ -109,11 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Mobile View Toggle ---
+    // --- Mobile View Toggle Components ---
     const mainContainer = document.querySelector('.main-container');
     const mapSection = document.getElementById('map-section');
     const listingsSection = document.getElementById('listings-section');
     const mvtButtons = document.querySelectorAll('.mvt-btn');
+
+    const isMobile = () => window.innerWidth <= 992;
 
     function updateHeaderHeight() {
         const header = document.querySelector('.site-header');
@@ -127,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mapSection?.classList.remove('mobile-map-active');
         listingsSection?.classList.remove('mobile-hidden');
         mvtButtons.forEach(b => b.classList.remove('mvt-active'));
+
         if (mode === 'list') {
             document.getElementById('mvt-list')?.classList.add('mvt-active');
             document.body.classList.remove('mobile-map-only');
@@ -147,9 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     mvtButtons.forEach(btn => btn.addEventListener('click', () => applyMobileMode(btn.dataset.mode)));
 
-    const isMobile = () => window.innerWidth <= 992;
     if (isMobile()) {
-        applyMobileMode(localStorage.getItem('mobileViewMode') || 'split');
+        applyMobileMode(localStorage.getItem('mobileViewMode') || 'map');
         const initialOverlay = document.getElementById('initial-mode-overlay');
         if (initialOverlay) {
             initialOverlay.style.display = 'flex';

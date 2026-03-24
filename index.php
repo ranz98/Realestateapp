@@ -34,13 +34,16 @@ require_once 'auth_check.php';
                     <a href="dashboard.php">Dashboard</a>
                     <?php if ($_SESSION['user_role'] === 'admin'): ?>
                         <a href="admin.php">Admin</a>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                     <a href="list-apartment.php" class="btn-primary">List Property</a>
                     <a href="logout.php">Logout</a>
-                <?php else: ?>
+                <?php
+else: ?>
                     <a href="login.php">Login</a>
                     <a href="register.php" class="btn-primary">Sign Up</a>
-                <?php endif; ?>
+                <?php
+endif; ?>
             </div>
         </nav>
 
@@ -215,7 +218,7 @@ require_once 'auth_check.php';
                 </div>
                 <div class="footer-col">
                     <h4>Company</h4>
-                    <a href="#">About Us</a>
+                    <a href="#">About Usxx</a>
                     <a href="#">Contact</a>
                     <a href="#">Careers</a>
                 </div>
@@ -234,9 +237,9 @@ require_once 'auth_check.php';
 
     <!-- Mobile View Toggle Pill -->
     <div class="mobile-view-toggle" id="mobile-view-toggle">
-        <button class="mvt-btn mvt-active" id="mvt-list" data-mode="list"><i class="fa-solid fa-list"></i><span>List</span></button>
+        <button class="mvt-btn" id="mvt-list" data-mode="list"><i class="fa-solid fa-list"></i><span>List</span></button>
         <button class="mvt-btn" id="mvt-split" data-mode="split"><i class="fa-solid fa-table-columns"></i><span>Split</span></button>
-        <button class="mvt-btn" id="mvt-map" data-mode="map"><i class="fa-solid fa-map-location-dot"></i><span>Map</span></button>
+        <button class="mvt-btn mvt-active" id="mvt-map" data-mode="map"><i class="fa-solid fa-map-location-dot"></i><span>Map</span></button>
     </div>
 
     <!-- Hidden inputs for JS price sync -->

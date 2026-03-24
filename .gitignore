@@ -9,3 +9,5 @@ update_schema.sql
 uploads/
 
 db.php
+ftpupdate.py
+.ftp_cache.json
