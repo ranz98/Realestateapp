@@ -29,7 +29,9 @@ $total_bids = $bidsStmt->fetchColumn();
     <title>My Account - MyHomeMyLand.LK</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="terminal.css">
+    <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.05); --glass-border: rgba(255, 255, 255, 0.1); }
         [data-theme="dark"] { --glass: rgba(0, 0, 0, 0.3); --glass-border: rgba(255, 255, 255, 0.05); }
@@ -205,6 +207,7 @@ $total_bids = $bidsStmt->fetchColumn();
     </div>
 
     <script src="script.js"></script>
+    <script src="terminal.js"></script>
     <script>
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();

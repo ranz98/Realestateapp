@@ -54,7 +54,10 @@ $selected_features = explode(', ', $apartment['features']);
     <meta charset="UTF-8">
     <title>Edit Apartment - MyHomeMyLand.LK</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="terminal.css">
+    <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 
 <?php include 'get-theme.php'; ?>
 
@@ -132,5 +135,6 @@ $selected_features = explode(', ', $apartment['features']);
             </form>
         </div>
     </main>
+    <script src="terminal.js"></script>
 </body>
 </html>

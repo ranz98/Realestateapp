@@ -1,63 +1,40 @@
 <?php
-require_once 'auth_check.php'; // validates session + includes db.php
+require_once 'auth_check.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+if (!isset($_GET['id'])) {
+    header("Location: index.php");
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = $_POST['title'];
-    $type = $_POST['type'];
-    $price = $_POST['price'];
-    $beds = $_POST['beds'];
-    $baths = $_POST['baths'];
-    $size_sqft = $_POST['size_sqft'] ?: 0;
-    $completion_status = $_POST['completion_status'];
-    $furnished_status = $_POST['furnished_status'];
-    $apartment_complex = $_POST['apartment_complex'] ?: '';
-    $address = $_POST['address'];
-    $description = $_POST['description'];
-    $features = isset($_POST['features']) ? implode(', ', $_POST['features']) : '';
-    
-    $lat = isset($_POST['lat']) && !empty($_POST['lat']) ? (float)$_POST['lat'] : 6.9271;
-    $lng = isset($_POST['lng']) && !empty($_POST['lng']) ? (float)$_POST['lng'] : 79.8612;
+$id = (int)$_GET['id'];
+$stmt = $pdo->prepare("SELECT a.*, u.name as owner_name, u.email as owner_email FROM apartments a JOIN users u ON a.user_id = u.id WHERE a.id = ? AND a.status = 'approved'");
+$stmt->execute([$id]);
+$apt = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Multiple File Uploads
-    $uploaded_images = [];
-    $upload_dir = 'uploads/';
-    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-    
-    if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
-        $count = min(count($_FILES['images']['name']), 5);
-        for ($i = 0; $i < $count; $i++) {
-            if ($_FILES['images']['error'][$i] === UPLOAD_ERR_OK) {
-                $tmp = $_FILES['images']['tmp_name'][$i];
-                $ext = pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION);
-                $newName = uniqid() . '_' . $i . '.' . $ext;
-                $dest = $upload_dir . $newName;
-                if (move_uploaded_file($tmp, $dest)) {
-                    $uploaded_images[] = $dest;
-                }
-            }
-        }
-    }
-
-    if (count($uploaded_images) === 0) {
-        $uploaded_images[] = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
-    }
-    $images_json = json_encode($uploaded_images);
-
-    $listing_mode = $_POST['listing_mode'] ?? 'Rent';
-    $seller_email = $_POST['seller_email'] ?? '';
-    $seller_phone = $_POST['seller_phone'] ?? '';
-    $size_perches = (isset($_POST['size_perches']) && $_POST['size_perches'] !== '') ? (float)$_POST['size_perches'] : null;
-
-    $stmt = $pdo->prepare("INSERT INTO apartments (user_id, title, type, price, bedrooms, baths, size_sqft, completion_status, furnished_status, apartment_complex, address, description, features, lat, lng, images, status, listing_mode, seller_email, seller_phone, size_perches) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)");
-    $stmt->execute([$_SESSION['user_id'], $title, $type, $price, $beds, $baths, $size_sqft, $completion_status, $furnished_status, $apartment_complex, $address, $description, $features, $lat, $lng, $images_json, $listing_mode, $seller_email, $seller_phone, $size_perches]);
-    
-    header("Location: dashboard.php?msg=Listing+Submitted+for+Approval");
+if (!$apt) {
+    header("Location: index.php");
     exit;
+}
+
+// Increment view count
+$pdo->prepare("UPDATE apartments SET view_count = view_count + 1 WHERE id = ?")->execute([$id]);
+try {
+    $pdo->prepare("INSERT INTO daily_views (apartment_id, user_id, view_date, views) VALUES (?, ?, CURDATE(), 1) ON DUPLICATE KEY UPDATE views = views + 1")->execute([$id, $apt['user_id']]);
+} catch (Exception $e) {}
+
+$images = [];
+try { $images = json_decode($apt['images'], true); } catch(Exception $e) {}
+if (!$images || count($images) === 0) {
+    $images = ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800'];
+}
+
+$features = $apt['features'] ? explode(',', $apt['features']) : [];
+
+$my_bids = [];
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM bids WHERE apartment_id = ? AND user_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$id, $_SESSION['user_id']]);
+    $my_bids = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 <!DOCTYPE html>
@@ -65,500 +42,1101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>List Apartment - MyHomeMyLand.LK</title>
+    <title><?= htmlspecialchars($apt['title']) ?> - MyHomeMyLand.LK</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="terminal.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
     <style>
-        /* ── Type Selector ── */
-        .type-selector {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+        /* ══════════════════════════════════════════
+           DETAIL PAGE — REDESIGNED LAYOUT
+           ══════════════════════════════════════════ */
+
+        .detail-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 1.2rem 6rem;
         }
-        .type-selector .type-option {
-            flex: 1;
-            min-width: 90px;
-            text-align: center;
-            border: 2px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 0.8rem 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: var(--bg-main);
+
+        /* ── Back Link ── */
+        .detail-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.88rem;
+            margin-bottom: 1.2rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .detail-back:hover { color: var(--primary); }
+
+        /* ═══════════════════════
+           GALLERY
+           ═══════════════════════ */
+        .gallery-wrapper { position: relative; margin-bottom: 1.5rem; }
+        .gallery {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            grid-template-rows: 200px 200px;
+            gap: 6px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .gallery-item { overflow: hidden; cursor: pointer; position: relative; }
+        .gallery-item img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.4s ease;
+        }
+        .gallery-item:hover img { transform: scale(1.04); }
+        .gallery-item.main { grid-row: 1 / -1; }
+        .gallery-count {
+            position: absolute;
+            bottom: 14px; right: 14px;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            padding: 0.35rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+
+        /* ═══════════════════════
+           MAIN LAYOUT — TWO COL
+           ═══════════════════════ */
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        /* ── Left Column ── */
+        .detail-left {}
+
+        /* ── Header ── */
+        .detail-header { margin-bottom: 1.5rem; }
+        .detail-header h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.01em;
+        }
+        .detail-address {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .detail-price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-top: 0.6rem;
+        }
+        .detail-price {
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .detail-price-suffix {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* ── Tags ── */
+        .detail-tags {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-top: 0.8rem;
+        }
+        .detail-tag {
+            background: var(--bg-main);
+            border: 1px solid var(--border-glass);
+            padding: 0.28rem 0.7rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: inline-flex;
             align-items: center;
             gap: 0.3rem;
         }
-        .type-selector .type-option:hover {
-            border-color: var(--primary);
-        }
-        .type-selector input[type="radio"] {
-            display: none;
-        }
-        .type-selector .type-option-inner {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            line-height: 1.3;
-            pointer-events: none;
-        }
-        .type-selector .type-option-inner .type-icon {
-            font-size: 1.4rem;
-            display: block;
-            margin-bottom: 0.2rem;
-        }
-        .type-selector input[type="radio"]:checked + .type-option-inner {
-            color: var(--primary);
-            font-weight: 700;
-        }
-        .type-selector label:has(input[type="radio"]:checked) .type-option,
-        .type-selector .type-option.selected {
-            border-color: var(--primary);
-            background: rgba(79, 70, 229, 0.06);
-            box-shadow: 0 0 0 1px var(--primary);
-        }
-
-        /* ── Mode Selector (Buy/Rent) ── */
-        .mode-selector {
-            display: flex;
-            gap: 0.8rem;
-        }
-        .mode-selector .mode-option {
-            flex: 1;
-            text-align: center;
-            padding: 0.8rem;
-            border: 2px solid var(--border-glass);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.95rem;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-            display: block;
-        }
-        .mode-selector .mode-option:hover {
-            border-color: var(--primary);
-        }
-        .mode-selector input[type="radio"] {
-            display: none;
-        }
-        .mode-selector label:has(input[type="radio"]:checked) .mode-option,
-        .mode-selector .mode-option.selected {
+        .detail-tag.tag-mode {
             background: var(--primary);
             color: white;
-            border-color: var(--primary);
+            border: none;
+            font-weight: 600;
         }
 
-        /* ── Features Grid ── */
-        .features-grid {
+        /* ── Stat Ribbon ── */
+        .stat-ribbon {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 0.6rem;
-            margin-top: 0.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-card);
         }
-        .feature-item {
+        .stat-cell {
+            padding: 1rem;
+            text-align: center;
+            border-right: 1px solid var(--border-glass);
+        }
+        .stat-cell:last-child { border-right: none; }
+        .stat-cell .stat-val {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: block;
+        }
+        .stat-cell .stat-lbl {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-top: 0.15rem;
+            display: block;
+        }
+
+        /* ── Section Cards ── */
+        .detail-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 1.4rem;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 1rem;
+        }
+        .detail-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.9rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.55rem 0.75rem;
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: var(--bg-main);
-            user-select: none;
         }
-        .feature-item:hover {
-            border-color: var(--primary);
-        }
-        .feature-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--primary);
-            cursor: pointer;
-            flex-shrink: 0;
-            margin: 0;
-        }
-        .feature-item .feature-label {
-            font-size: 0.85rem;
-            color: var(--text-primary);
-            font-weight: 500;
-            pointer-events: none;
-        }
-        .feature-item:has(input:checked) {
-            border-color: var(--primary);
-            background: rgba(79, 70, 229, 0.06);
+        .detail-section h3 i {
+            color: var(--primary);
+            font-size: 0.9rem;
         }
 
-        /* ── Image Upload ── */
-        .image-preview-grid {
+        /* ── Spec Grid ── */
+        .spec-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.9rem;
         }
-        .image-preview-grid img {
-            width: 100%;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid var(--border-glass);
+        .spec-item { display: flex; flex-direction: column; gap: 0.15rem; }
+        .spec-label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        .spec-value { font-size: 0.92rem; font-weight: 600; color: var(--text-primary); }
 
-        /* ── Fix global label bleed into custom components ── */
-        .type-selector label,
-        .mode-selector label,
-        .feature-item {
-            font-size: inherit;
-            font-weight: inherit;
-            color: inherit;
-        }
-
-        /* ── Map Container Responsive ── */
-        .map-container {
-            position: relative;
-            width: 100%;
-        }
-
-        #selection-map {
-            height: 350px;
-            border-radius: 8px;
-            border: 1px solid var(--border-glass);
-            width: 100%;
-        }
-
-        /* ── Map Type Toggle ── */
-        .map-type-toggle {
-            display: flex;
-            background: var(--bg-main, #fff);
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-            border: 1px solid var(--border-glass, #e2e8f0);
-        }
-
-        .map-type-toggle button {
-            padding: 6px 14px;
-            border: none;
-            background: transparent;
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--text-secondary, #666);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .map-type-toggle button.active {
-            background: var(--primary, #4f46e5);
-            color: #fff;
+        /* ── Features ── */
+        .feature-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .feature-chip {
+            background: rgba(79, 70, 229, 0.08);
+            color: var(--primary);
+            border: 1px solid rgba(79, 70, 229, 0.15);
+            padding: 0.28rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.82rem;
             font-weight: 600;
         }
 
-        .map-type-toggle button:not(.active):hover {
-            background: rgba(79, 70, 229, 0.08);
+        /* ── Description ── */
+        .description-text {
+            line-height: 1.75;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
         }
 
-        /* ── Responsive ── */
-        @media (max-width: 768px) {
-            .type-selector .type-option {
-                min-width: 70px;
-                padding: 0.6rem 0.3rem;
-            }
-            .type-selector .type-option-inner {
-                font-size: 0.75rem;
-            }
-            .type-selector .type-option-inner .type-icon {
-                font-size: 1.2rem;
-            }
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .mode-selector {
-                gap: 0.5rem;
-            }
-            .mode-selector .mode-option {
-                padding: 0.6rem;
-                font-size: 0.85rem;
-            }
-
-            #selection-map {
-                height: 260px;
-            }
-
-            .map-type-toggle button {
-                padding: 5px 10px;
-                font-size: 0.75rem;
-            }
+        /* ── Map ── */
+        .detail-map {
+            height: 260px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-glass);
+            margin-top: 0.5rem;
         }
 
-        @media (max-width: 480px) {
-            #selection-map {
-                height: 220px;
-            }
+        /* ── Owner Card ── */
+        .owner-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+        .owner-avatar {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .owner-info h4 { font-size: 0.92rem; font-weight: 600; margin-bottom: 0; }
+        .owner-info p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; }
+        .contact-btns {
+            display: flex;
+            gap: 0.4rem;
+        }
+        .contact-btns a {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            font-size: 0.82rem;
+            padding: 0.55rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            transition: all 0.2s;
+        }
+        .contact-btns .btn-email {
+            background: var(--primary);
+            color: #fff;
+        }
+        .contact-btns .btn-email:hover { opacity: 0.9; }
+        .contact-btns .btn-phone {
+            background: var(--bg-main);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+        }
+        .contact-btns .btn-phone:hover { border-color: var(--primary); color: var(--primary); }
+        .contact-btns .btn-whatsapp {
+            background: #25d366;
+            color: #fff;
+        }
+        .contact-btns .btn-whatsapp:hover { opacity: 0.9; }
 
-            .map-type-toggle button {
-                padding: 4px 8px;
-                font-size: 0.7rem;
+        /* ═══════════════════════════════════════════
+           RIGHT COLUMN — STICKY OFFER SIDEBAR
+           ═══════════════════════════════════════════ */
+        .detail-right {
+            position: sticky;
+            top: 90px;
+        }
+
+        /* ── Offer Card ── */
+        .offer-card {
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            padding: 1.4rem;
+            box-shadow: 0 8px 30px rgba(79, 70, 229, 0.10);
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .offer-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #7c3aed, #ec4899);
+        }
+        .offer-card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .offer-card h3 i { color: var(--primary); }
+        .offer-card .offer-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        .offer-card .offer-price-display {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 0.8rem 0 0.3rem;
+            letter-spacing: -0.02em;
+        }
+        .offer-card .offer-price-display small {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+        .offer-slider-wrap {
+            padding: 0 0.2rem;
+            margin-bottom: 0.8rem;
+        }
+        .offer-slider-wrap input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            height: 6px;
+            cursor: pointer;
+        }
+        .offer-slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+        .offer-msg-input {
+            width: 100%;
+            padding: 0.65rem 0.8rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-glass);
+            font-family: inherit;
+            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .offer-msg-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .offer-submit-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+        }
+        .offer-submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+        .offer-submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #bid-feedback {
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.6rem;
+        }
+
+        /* ── Quick Stats in Sidebar ── */
+        .sidebar-price-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-card);
+        }
+        .sidebar-price-card .price-big {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .sidebar-price-card .price-suffix {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .sidebar-price-card .price-meta {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--border-glass);
+        }
+        .sidebar-price-card .price-meta span {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .sidebar-price-card .price-meta span i { color: var(--primary); font-size: 0.75rem; }
+
+        /* ── Bid History ── */
+        .bid-history { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed var(--border-glass); }
+        .bid-history h4 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: var(--text-secondary);
+        }
+        .bid-history-item {
+            background: var(--bg-main);
+            padding: 0.65rem 0.8rem;
+            border-radius: 10px;
+            margin-bottom: 0.4rem;
+            border-left: 3px solid var(--primary);
+        }
+        .bid-history-item.status-accepted { border-left-color: #10b981; }
+        .bid-history-item.status-rejected { border-left-color: #ef4444; }
+        .bid-history-item .bid-h-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bid-h-amount { font-weight: 700; font-size: 0.88rem; }
+        .bid-h-status {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.15rem 0.5rem;
+            border-radius: 50px;
+        }
+        .bid-h-status.s-pending { background: rgba(79, 70, 229, 0.1); color: var(--primary); }
+        .bid-h-status.s-accepted { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .bid-h-status.s-rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .bid-h-date { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; }
+        .bid-h-accepted-msg {
+            margin-top: 0.4rem;
+            padding-top: 0.4rem;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            font-size: 0.78rem;
+            color: #065f46;
+            font-weight: 500;
+        }
+
+        /* ── Login Prompt in Sidebar ── */
+        .login-prompt {
+            text-align: center;
+            padding: 1.5rem 0.5rem;
+        }
+        .login-prompt i {
+            font-size: 1.8rem;
+            color: var(--border-glass);
+            margin-bottom: 0.6rem;
+            display: block;
+        }
+        .login-prompt p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+        }
+        .login-prompt a {
+            display: inline-block;
+            padding: 0.55rem 1.5rem;
+            background: var(--primary);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+
+        /* ═══════════════════════════════════════════
+           MOBILE STICKY BOTTOM BAR
+           ═══════════════════════════════════════════ */
+        .mobile-offer-bar {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--bg-card, #fff);
+            border-top: 1px solid var(--border-glass);
+            padding: 0.7rem 1rem;
+            z-index: 1000;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .mobile-offer-bar .mob-price {
+            flex: 1;
+        }
+        .mobile-offer-bar .mob-price .mob-price-val {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .mobile-offer-bar .mob-price .mob-price-suf {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            display: block;
+        }
+        .mobile-offer-bar .mob-offer-btn {
+            padding: 0.65rem 1.4rem;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 3px 12px rgba(79, 70, 229, 0.3);
+        }
+        .mobile-offer-bar .mob-contact-btn {
+            padding: 0.65rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-glass);
+            background: var(--bg-main);
+            color: var(--text-primary);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ═══════════════════════════════════════════
+           MOBILE OFFER DRAWER
+           ═══════════════════════════════════════════ */
+        .offer-drawer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+        .offer-drawer-overlay.active { display: block; }
+        .offer-drawer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--bg-card, #fff);
+            border-radius: 20px 20px 0 0;
+            padding: 1.5rem;
+            z-index: 2001;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .offer-drawer.active { transform: translateY(0); }
+        .offer-drawer .drawer-handle {
+            width: 40px; height: 4px;
+            background: var(--border-glass);
+            border-radius: 4px;
+            margin: 0 auto 1rem;
+        }
+        .offer-drawer h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .offer-drawer h3 i { color: var(--primary); }
+
+        /* ═══════════════════════
+           LIGHTBOX
+           ═══════════════════════ */
+        .lightbox {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(0,0,0,0.92);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .lightbox.active { display: flex; animation: fadeIn 0.2s ease; }
+        .lightbox img {
+            max-width: 92%;
+            max-height: 90vh;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 16px; right: 20px;
+            color: white;
+            font-size: 2rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            cursor: pointer;
+            z-index: 3010;
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            cursor: pointer;
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .lightbox-nav:hover { background: rgba(255,255,255,0.2); }
+        .lightbox-nav.prev { left: 16px; }
+        .lightbox-nav.next { right: 16px; }
+        .lightbox-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+        /* ═══════════════════════
+           RESPONSIVE
+           ═══════════════════════ */
+        @media (max-width: 900px) {
+            .detail-layout {
+                grid-template-columns: 1fr;
             }
+            .detail-right {
+                position: static;
+                display: none; /* hidden on mobile — replaced by bottom bar + drawer */
+            }
+            .mobile-offer-bar { display: flex; }
+            .detail-page { padding-bottom: 5rem; }
+        }
+
+        @media (max-width: 640px) {
+            .gallery {
+                grid-template-columns: 1fr;
+                grid-template-rows: 220px;
+            }
+            .gallery-item.main { grid-row: auto; }
+            .gallery-item.side { display: none; }
+            .gallery-count { bottom: 10px; right: 10px; }
+            .detail-header h1 { font-size: 1.3rem; }
+            .detail-price { font-size: 1.4rem; }
+            .stat-ribbon { grid-template-columns: repeat(2, 1fr); }
+            .stat-cell { border-bottom: 1px solid var(--border-glass); }
+            .spec-grid { grid-template-columns: 1fr; }
+            .detail-page { padding: 1rem 0.8rem 5rem; }
         }
     </style>
-<?php include 'get-theme.php'; ?>
+
+    <?php include 'get-theme.php'; ?>
 </head>
-<body class="form-page">
+<body>
     <header class="site-header">
         <nav class="navbar">
-<?php include 'logo-partial.php'; ?>
+            <a href="index.php" class="logo" style="text-decoration: none;">
+                <i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK
+            </a>
             <div class="nav-links">
                 <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
                     <i class="fa-solid fa-moon"></i>
+                    <i class="fa-solid fa-sun" style="display:none;"></i>
                 </button>
                 <a href="index.php">Explore</a>
-                <a href="dashboard.php">Dashboard</a>
-                <a href="logout.php">Logout</a>
+                <?php if(isset($_SESSION['user_id'])): ?>
+                    <a href="dashboard.php">Dashboard</a>
+                    <?php if($_SESSION['user_role'] === 'admin'): ?>
+                        <a href="admin.php">Admin</a>
+                    <?php endif; ?>
+                    <a href="logout.php">Logout</a>
+                <?php else: ?>
+                    <a href="login.php">Login</a>
+                    <a href="register.php" class="btn-primary">Sign Up</a>
+                <?php endif; ?>
             </div>
         </nav>
     </header>
-    <main class="page-container form-page">
-        <div class="form-wrapper">
-            <h2 style="margin-bottom: 0.3rem;">List Your Property</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Fill in all the details below accurately.</p>
-            <form method="POST" class="listing-form" enctype="multipart/form-data">
 
-                <!-- Listing Mode -->
-                <div class="input-group">
-                    <label>Listing Mode *</label>
-                    <div class="mode-selector" id="mode-selector">
-                        <label>
-                            <input type="radio" name="listing_mode" value="Rent" checked>
-                            <div class="mode-option selected">Rent</div>
-                        </label>
-                        <label>
-                            <input type="radio" name="listing_mode" value="Buy">
-                            <div class="mode-option">Buy</div>
-                        </label>
+    <div class="detail-page">
+        <a href="index.php" class="detail-back"><i class="fa-solid fa-arrow-left"></i> Back to listings</a>
+
+        <!-- ═══ GALLERY ═══ -->
+        <div class="gallery-wrapper">
+            <div class="gallery">
+                <div class="gallery-item main">
+                    <img src="<?= htmlspecialchars($images[0]) ?>" alt="<?= htmlspecialchars($apt['title']) ?>" data-idx="0">
+                </div>
+                <?php if(count($images) > 1): ?>
+                    <?php for($i = 1; $i < min(count($images), 3); $i++): ?>
+                        <div class="gallery-item side">
+                            <img src="<?= htmlspecialchars($images[$i]) ?>" alt="Photo <?= $i+1 ?>" data-idx="<?= $i ?>">
+                        </div>
+                    <?php endfor; ?>
+                <?php endif; ?>
+            </div>
+            <?php if(count($images) > 1): ?>
+                <div class="gallery-count"><i class="fa-solid fa-images"></i> <?= count($images) ?> Photos</div>
+            <?php endif; ?>
+        </div>
+
+        <!-- ═══ TWO-COLUMN LAYOUT ═══ -->
+        <div class="detail-layout">
+
+            <!-- ── LEFT COLUMN ── -->
+            <div class="detail-left">
+
+                <!-- Header -->
+                <div class="detail-header">
+                    <h1><?= htmlspecialchars($apt['title']) ?></h1>
+                    <div class="detail-address"><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($apt['address']) ?></div>
+                    <div class="detail-price-row">
+                        <span class="detail-price">Rs. <?= number_format($apt['price']) ?></span>
+                        <span class="detail-price-suffix"><?= $apt['listing_mode'] === 'Buy' ? 'Total Price' : '/ month' ?></span>
+                    </div>
+                    <div class="detail-tags">
+                        <span class="detail-tag tag-mode"><i class="fa-solid fa-tag"></i> For <?= htmlspecialchars($apt['listing_mode'] ?? 'Rent') ?></span>
+                        <span class="detail-tag"><i class="fa-solid fa-building"></i> <?= htmlspecialchars($apt['type']) ?></span>
+                        <span class="detail-tag"><i class="fa-solid fa-clock"></i> <?= date('M d, Y', strtotime($apt['created_at'])) ?></span>
+                        <span class="detail-tag"><i class="fa-solid fa-eye"></i> <?= number_format($apt['view_count'] ?? 0) ?> views</span>
                     </div>
                 </div>
 
-                <!-- Property Type -->
-                <div class="input-group">
-                    <label>Property Type *</label>
-                    <div class="type-selector" id="type-selector">
-                        <label>
-                            <input type="radio" name="type" value="Apartment" checked>
-                            <div class="type-option selected">
-                                <div class="type-option-inner">
-                                    <span class="type-icon">🏢</span>
-                                    Apartment
-                                </div>
-                            </div>
-                        </label>
-                        <label>
-                            <input type="radio" name="type" value="House">
-                            <div class="type-option">
-                                <div class="type-option-inner">
-                                    <span class="type-icon">🏠</span>
-                                    House
-                                </div>
-                            </div>
-                        </label>
-                        <label>
-                            <input type="radio" name="type" value="Villa">
-                            <div class="type-option">
-                                <div class="type-option-inner">
-                                    <span class="type-icon">🏡</span>
-                                    Villa
-                                </div>
-                            </div>
-                        </label>
-                        <label>
-                            <input type="radio" name="type" value="Commercial">
-                            <div class="type-option">
-                                <div class="type-option-inner">
-                                    <span class="type-icon">🏪</span>
-                                    Commercial
-                                </div>
-                            </div>
-                        </label>
-                        <label>
-                            <input type="radio" name="type" value="Land">
-                            <div class="type-option">
-                                <div class="type-option-inner">
-                                    <span class="type-icon">🌿</span>
-                                    Land
-                                </div>
-                            </div>
-                        </label>
+                <!-- Stat Ribbon -->
+                <?php if($apt['type'] !== 'Land'): ?>
+                <div class="stat-ribbon">
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= htmlspecialchars($apt['bedrooms']) ?></span>
+                        <span class="stat-lbl">Bedrooms</span>
+                    </div>
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= (int)$apt['baths'] ?></span>
+                        <span class="stat-lbl">Bathrooms</span>
+                    </div>
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= $apt['size_sqft'] > 0 ? number_format($apt['size_sqft']) : 'N/A' ?></span>
+                        <span class="stat-lbl">Sqft</span>
+                    </div>
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= htmlspecialchars($apt['completion_status'] ?: 'Ready') ?></span>
+                        <span class="stat-lbl">Status</span>
+                    </div>
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= htmlspecialchars($apt['furnished_status'] ?: 'N/A') ?></span>
+                        <span class="stat-lbl">Furnished</span>
                     </div>
                 </div>
-
-                <!-- Title & Price -->
-                <div class="input-row">
-                    <div class="input-group">
-                        <label>Listing Title *</label>
-                        <input type="text" name="title" placeholder="e.g. Premium 2BR Fully Furnished Apartment" required>
+                <?php else: ?>
+                <div class="stat-ribbon">
+                    <div class="stat-cell">
+                        <span class="stat-val"><?= (float)$apt['size_perches'] ?></span>
+                        <span class="stat-lbl">Perches</span>
                     </div>
-                    <div class="input-group">
-                        <label>Price (Rs.) *</label>
-                        <input type="number" name="price" placeholder="75000" required>
-                    </div>
-                </div>
-
-                <!-- Beds & Baths (Hidden for Land) -->
-                <div class="input-row" id="row-beds-baths">
-                    <div class="input-group">
-                        <label>Bedrooms *</label>
-                        <select name="beds" id="val-beds">
-                            <option value="studio">Studio</option>
-                            <option value="1">1 Bedroom</option>
-                            <option value="2" selected>2 Bedrooms</option>
-                            <option value="3">3 Bedrooms</option>
-                            <option value="4+">4+ Bedrooms</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Bathrooms *</label>
-                        <select name="baths" id="val-baths">
-                            <option value="1">1 Bathroom</option>
-                            <option value="2" selected>2 Bathrooms</option>
-                            <option value="3">3 Bathrooms</option>
-                            <option value="4+">4+ Bathrooms</option>
-                        </select>
+                    <div class="stat-cell">
+                        <span class="stat-val">Land</span>
+                        <span class="stat-lbl">Type</span>
                     </div>
                 </div>
-
-                <!-- Size & Complex -->
-                <div class="input-row">
-                    <div class="input-group" id="grp-sqft">
-                        <label>Size (sqft)</label>
-                        <input type="number" name="size_sqft" placeholder="e.g. 842">
-                    </div>
-                    <div class="input-group" id="grp-perches" style="display: none;">
-                        <label>Size (perches) *</label>
-                        <input type="number" step="0.1" name="size_perches" placeholder="e.g. 10.5" id="val-perches">
-                    </div>
-                    <div class="input-group" id="grp-complex">
-                        <label>Apartment Complex</label>
-                        <input type="text" name="apartment_complex" placeholder="e.g. Luna Tower, Colombo 02">
-                    </div>
-                </div>
-
-                <!-- Completion & Furnished Status -->
-                <div class="input-row" id="row-status">
-                    <div class="input-group">
-                        <label>Completion Status *</label>
-                        <select name="completion_status" required>
-                            <option value="Ready">Ready</option>
-                            <option value="Under Construction">Under Construction</option>
-                            <option value="Off-Plan">Off-Plan</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Furnished Status *</label>
-                        <select name="furnished_status" required>
-                            <option value="Fully Furnished">Fully Furnished</option>
-                            <option value="Semi Furnished">Semi Furnished</option>
-                            <option value="Unfurnished">Unfurnished</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Seller Contact -->
-                <div class="input-row">
-                    <div class="input-group">
-                        <label>Seller Email *</label>
-                        <input type="email" name="seller_email" placeholder="email@example.com" value="<?= htmlspecialchars($_SESSION['user_email'] ?? '') ?>" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Seller Phone *</label>
-                        <input type="tel" name="seller_phone" placeholder="e.g. 077 123 4567" required>
-                    </div>
-                </div>
+                <?php endif; ?>
 
                 <!-- Description -->
-                <div class="input-group">
-                    <label>Description *</label>
-                    <textarea name="description" rows="5" placeholder="Describe the property in detail..." required></textarea>
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-file-lines"></i> Description</h3>
+                    <div class="description-text"><?= nl2br(htmlspecialchars($apt['description'])) ?></div>
                 </div>
 
-                <!-- Image Upload -->
-                <div class="input-group">
-                    <label>Upload Images (Max 5)</label>
-                    <input type="file" name="images[]" id="image-upload" multiple accept="image/*" style="padding: 0.5rem;">
-                    <div id="image-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: none;">You can only upload a maximum of 5 images.</div>
-                    <div class="image-preview-grid" id="image-preview"></div>
+                <!-- Property Details -->
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-circle-info"></i> Property Details</h3>
+                    <div class="spec-grid">
+                        <div class="spec-item">
+                            <span class="spec-label">Property Type</span>
+                            <span class="spec-value"><?= htmlspecialchars($apt['type']) ?></span>
+                        </div>
+                        <?php if($apt['type'] !== 'Land'): ?>
+                            <div class="spec-item">
+                                <span class="spec-label">Bedrooms</span>
+                                <span class="spec-value"><?= htmlspecialchars($apt['bedrooms']) ?></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Bathrooms</span>
+                                <span class="spec-value"><?= (int)$apt['baths'] ?></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Size</span>
+                                <span class="spec-value"><?= $apt['size_sqft'] > 0 ? number_format($apt['size_sqft']) . ' sqft' : 'N/A' ?></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Completion Status</span>
+                                <span class="spec-value"><?= htmlspecialchars($apt['completion_status'] ?: 'Ready') ?></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Furnished Status</span>
+                                <span class="spec-value"><?= htmlspecialchars($apt['furnished_status'] ?: 'Unfurnished') ?></span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Apartment Complex</span>
+                                <span class="spec-value"><?= htmlspecialchars($apt['apartment_complex'] ?: 'N/A') ?></span>
+                            </div>
+                        <?php else: ?>
+                            <div class="spec-item">
+                                <span class="spec-label">Size</span>
+                                <span class="spec-value"><?= (float)$apt['size_perches'] ?> Perches</span>
+                            </div>
+                        <?php endif; ?>
+                        <div class="spec-item">
+                            <span class="spec-label">Address</span>
+                            <span class="spec-value"><?= htmlspecialchars($apt['address']) ?></span>
+                        </div>
+                    </div>
+
+                    <?php if(count($features) > 0): ?>
+                    <h3 style="margin-top: 1.3rem;"><i class="fa-solid fa-star"></i> Features & Amenities</h3>
+                    <div class="feature-list">
+                        <?php foreach($features as $f): ?>
+                            <span class="feature-chip"><?= htmlspecialchars(trim($f)) ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
-                <!-- Features & Amenities -->
-                <div class="input-group">
-                    <label>Features & Amenities</label>
-                    <div class="features-grid">
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="A/C">
-                            <span class="feature-label">A/C</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Pool">
-                            <span class="feature-label">Pool</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Gym">
-                            <span class="feature-label">Gym</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Parking">
-                            <span class="feature-label">Parking</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Furnished">
-                            <span class="feature-label">Furnished</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Balcony">
-                            <span class="feature-label">Balcony</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Security">
-                            <span class="feature-label">24/7 Security</span>
-                        </label>
-                        <label class="feature-item">
-                            <input type="checkbox" name="features[]" value="Generator">
-                            <span class="feature-label">Generator</span>
-                        </label>
+                <!-- Location Map -->
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-map-pin"></i> Location</h3>
+                    <div id="detail-map" class="detail-map"></div>
+                </div>
+
+                <!-- Contact (visible on mobile since sidebar is hidden) -->
+                <div class="detail-section" style="display: none;" id="mobile-contact-section">
+                    <h3><i class="fa-solid fa-user"></i> Listed By</h3>
+                    <div class="owner-row">
+                        <div class="owner-avatar"><?= strtoupper(substr($apt['owner_name'], 0, 1)) ?></div>
+                        <div class="owner-info">
+                            <h4><?= htmlspecialchars($apt['owner_name']) ?></h4>
+                            <p>Verified Lister</p>
+                        </div>
+                    </div>
+                    <div class="contact-btns">
+                        <?php $sEmail = $apt['seller_email'] ?: $apt['owner_email']; ?>
+                        <a href="mailto:<?= htmlspecialchars($sEmail) ?>" class="btn-email"><i class="fa-solid fa-envelope"></i> Email</a>
+                        <?php if(!empty($apt['seller_phone'])): ?>
+                            <a href="tel:<?= htmlspecialchars($apt['seller_phone']) ?>" class="btn-phone"><i class="fa-solid fa-phone"></i> Call</a>
+                            <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $apt['seller_phone']) ?>" target="_blank" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i></a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ RIGHT COLUMN — STICKY SIDEBAR ═══ -->
+            <div class="detail-right">
+
+                <!-- Price Summary Card -->
+                <div class="sidebar-price-card">
+                    <div class="price-big">Rs. <?= number_format($apt['price']) ?></div>
+                    <div class="price-suffix"><?= $apt['listing_mode'] === 'Buy' ? 'Total Price' : 'per month' ?></div>
+                    <div class="price-meta">
+                        <?php if($apt['type'] !== 'Land' && $apt['size_sqft'] > 0): ?>
+                            <span><i class="fa-solid fa-ruler-combined"></i> Rs. <?= number_format(round($apt['price'] / $apt['size_sqft'])) ?>/sqft</span>
+                        <?php endif; ?>
+                        <span><i class="fa-solid fa-eye"></i> <?= number_format($apt['view_count'] ?? 0) ?> views</span>
                     </div>
                 </div>
 
-                <!-- Address + Geocode -->
-                <div class="input-group">
-                    <label>Full Address *</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" name="address" id="address-input" placeholder="e.g. Union Place, Colombo 02" required style="flex: 1;">
-                        <button type="button" id="geocode-btn" class="btn-primary" style="white-space: nowrap;"><i class="fa-solid fa-location-crosshairs"></i> Locate</button>
+                <!-- Contact Card -->
+                <div class="detail-section">
+                    <h3><i class="fa-solid fa-user"></i> Listed By</h3>
+                    <div class="owner-row">
+                        <div class="owner-avatar"><?= strtoupper(substr($apt['owner_name'], 0, 1)) ?></div>
+                        <div class="owner-info">
+                            <h4><?= htmlspecialchars($apt['owner_name']) ?></h4>
+                            <p>Verified Lister</p>
+                        </div>
                     </div>
-                    <small style="color: var(--text-secondary); margin-top: 5px; display: block;">Click 'Locate' to automatically find and drop a pin on the map below.</small>
+                    <div class="contact-btns">
+                        <?php $sEmail = $apt['seller_email'] ?: $apt['owner_email']; ?>
+                        <a href="mailto:<?= htmlspecialchars($sEmail) ?>" class="btn-email"><i class="fa-solid fa-envelope"></i> Email</a>
+                        <?php if(!empty($apt['seller_phone'])): ?>
+                            <a href="tel:<?= htmlspecialchars($apt['seller_phone']) ?>" class="btn-phone"><i class="fa-solid fa-phone"></i> Call</a>
+                            <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $apt['seller_phone']) ?>" target="_blank" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i></a>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
-                <!-- Map Pin -->
-                <div class="input-group">
-                    <label>Pin Exact Location on Map *</label>
-                    <div class="map-container">
-                        <div id="selection-map"></div>
-                    </div>
-                    <input type="hidden" name="lat" id="lat" value="6.9271">
-                    <input type="hidden" name="lng" id="lng" value="79.8612">
-                    <small style="color: var(--text-secondary);">Click or drag the marker to your property's exact location.</small>
-                </div>
+                <!-- Offer / Bid Card -->
+                <div class="offer-card">
+                    <h3><i class="fa-solid fa-gavel"></i> Make an Offer</h3>
+                    <?php if(isset($_SESSION['user_id'])): ?>
+                        <?php if($_SESSION['user_id'] == $apt['user_id']): ?>
+                            <p style="color: var(--text-secondary); text-align: center; padding: 1rem 0; font-size: 0.88rem;">You cannot bid on your own listing.</p>
+                        <?php else: ?>
+                            <p class="offer-subtitle">Set your price and send directly to the seller.</p>
+                            <div class="offer-slider-wrap">
+                                <input type="range" id="bid-slider"
+                                       min="<?= (int)$apt['price'] * 0.7 ?>"
+                                       max="<?= (int)$apt['price'] * 1.5 ?>"
+                                       step="5000"
+                                       value="<?= (int)$apt['price'] ?>">
+                                <div class="offer-slider-labels">
+                                    <span>Rs. <?= number_format((int)$apt['price'] * 0.7) ?></span>
+                                    <span>Rs. <?= number_format((int)$apt['price'] * 1.5) ?></span>
+                                </div>
+                            </div>
+                            <div class="offer-price-display">
+                                <small>Your Offer</small>
+                                Rs. <span id="bid-amount-display"><?= number_format($apt['price']) ?></span>
+                            </div>
+                            <input type="text" id="bid-message" class="offer-msg-input" placeholder="Message to seller (optional)...">
+                            <button id="submit-bid-btn" class="offer-submit-btn" data-apt="<?= $id ?>">
+                                <i class="fa-solid fa-paper-plane"></i> Submit Offer
+                            </button>
+                            <div id="bid-feedback" style="display: none;"></div>
 
-                <button type="submit" class="btn-primary" style="width:100%; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem;">Submit Listing for Approval</button>
-            </form>
+                            <?php if(count($my_bids) > 0): ?>
+                                <div class="bid-history">
+                                    <h4><i class="fa-solid fa-clock-rotate-left"></i> Your Offers</h4>
+                                    <?php foreach($my_bids as $bid): ?>
+                                        <div class="bid-history-item status-<?= $bid['status'] ?>">
+                                            <div class="bid-h-top">
+                                                <span class="bid-h-amount">Rs. <?= number_format($bid['amount']) ?></span>
+                                                <span class="bid-h-status s-<?= $bid['status'] ?>"><?= $bid['status'] ?></span>
+                                            </div>
+                                            <div class="bid-h-date"><?= date('M d, Y', strtotime($bid['created_at'])) ?></div>
+                                            <?php if($bid['status'] === 'accepted'): ?>
+                                                <div class="bid-h-accepted-msg">
+                                                    <i class="fa-solid fa-check-circle"></i> Accepted! Contact seller above.
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="login-prompt">
+                            <i class="fa-solid fa-lock"></i>
+                            <p>Log in to place an offer on this property.</p>
+                            <a href="login.php">Login to Bid</a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-    </main>
+    </div>
 
+    <!-- ═══ MOBILE STICKY BOTTOM BAR ═══ -->
+    <div class="mobile-offer-bar" id="mobile-offer-bar">
+        <div class="mob-price">
+            <span class="mob-price-val">Rs. <?= number_format($apt['price']) ?></span>
+            <span class="mob-price-suf"><?= $apt['listing_mode'] === 'Buy' ? 'Total' : '/ month' ?></span>
+        </div>
+        <?php if(!empty($apt['seller_phone'])): ?>
+            <a href="tel:<?= htmlspecialchars($apt['seller_phone']) ?>" class="mob-contact-btn"><i class="fa-solid fa-phone"></i></a>
+        <?php endif; ?>
+        <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] != $apt['user_id']): ?>
+            <button class="mob-offer-btn" id="mob-offer-trigger"><i class="fa-solid fa-gavel"></i> Make Offer</button>
+        <?php elseif(!isset($_SESSION['user_id'])): ?>
+            <a href="login.php" class="mob-offer-btn" style="text-decoration:none;">Login to Bid</a>
+        <?php endif; ?>
+    </div>
+
+    <!-- ═══ MOBILE OFFER DRAWER ═══ -->
+    <div class="offer-drawer-overlay" id="drawer-overlay"></div>
+    <div class="offer-drawer" id="offer-drawer">
+        <div class="drawer-handle"></div>
+        <h3><i class="fa-solid fa-gavel"></i> Make an Offer</h3>
+        <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] != $apt['user_id']): ?>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Slide to set your price for this property.</p>
+            <div class="offer-slider-wrap">
+                <input type="range" id="mob-bid-slider"
+                       min="<?= (int)$apt['price'] * 0.7 ?>"
+                       max="<?= (int)$apt['price'] * 1.5 ?>"
+                       step="5000"
+                       value="<?= (int)$apt['price'] ?>">
+                <div class="offer-slider-labels">
+                    <span>Rs. <?= number_format((int)$apt['price'] * 0.7) ?></span>
+                    <span>Rs. <?= number_format((int)$apt['price'] * 1.5) ?></span>
+                </div>
+            </div>
+            <div class="offer-price-display" style="text-align:center; font-size:1.6rem; font-weight:800; color:var(--primary); margin:0.6rem 0;">
+                Rs. <span id="mob-bid-amount-display"><?= number_format($apt['price']) ?></span>
+            </div>
+            <input type="text" id="mob-bid-message" class="offer-msg-input" placeholder="Message to seller (optional)...">
+            <button id="mob-submit-bid-btn" class="offer-submit-btn" data-apt="<?= $id ?>">
+                <i class="fa-solid fa-paper-plane"></i> Submit Offer
+            </button>
+            <div id="mob-bid-feedback" style="display: none; text-align:center; font-size:0.85rem; font-weight:600; margin-top:0.6rem;"></div>
+
+            <?php if(count($my_bids) > 0): ?>
+                <div class="bid-history">
+                    <h4><i class="fa-solid fa-clock-rotate-left"></i> Your Offers</h4>
+                    <?php foreach($my_bids as $bid): ?>
+                        <div class="bid-history-item status-<?= $bid['status'] ?>">
+                            <div class="bid-h-top">
+                                <span class="bid-h-amount">Rs. <?= number_format($bid['amount']) ?></span>
+                                <span class="bid-h-status s-<?= $bid['status'] ?>"><?= $bid['status'] ?></span>
+                            </div>
+                            <div class="bid-h-date"><?= date('M d, Y', strtotime($bid['created_at'])) ?></div>
+                            <?php if($bid['status'] === 'accepted'): ?>
+                                <div class="bid-h-accepted-msg"><i class="fa-solid fa-check-circle"></i> Accepted! Contact seller directly.</div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+
+    <!-- ═══ LIGHTBOX ═══ -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightbox-close"><i class="fa-solid fa-xmark"></i></button>
+        <button class="lightbox-nav prev" id="lb-prev"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="lightbox-nav next" id="lb-next"><i class="fa-solid fa-chevron-right"></i></button>
+        <img src="" alt="Fullscreen image" id="lightbox-img">
+        <div class="lightbox-counter" id="lb-counter"></div>
+    </div>
+
+    <!-- Site Footer -->
     <footer class="site-footer">
         <div class="footer-container">
             <p>&copy; <?php echo date('Y'); ?> MyHomeMyLand.LK. All rights reserved.</p>
@@ -570,256 +1148,178 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </footer>
 
-    <!-- Google Maps JavaScript API with Places library -->
-    <!-- Google Maps JavaScript API with Places library -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=<?php echo GOOGLE_MAPS_API_KEY; ?>&libraries=places&callback=initMap" async defer></script>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="script.js"></script>
+    <script src="terminal.js"></script>
     <script>
-        // ── Google Maps Global Variables ──
-        let map, marker, autocomplete;
-
-        // ── Google Maps Init (called by API callback) ──
-        function initMap() {
-            const defaultPos = { lat: 6.9271, lng: 79.8612 }; // Colombo, Sri Lanka
-
-            map = new google.maps.Map(document.getElementById('selection-map'), {
-                center: defaultPos,
-                zoom: 13,
-                mapTypeControl: false,
-                streetViewControl: false,
-                fullscreenControl: true,
-                gestureHandling: 'cooperative',
-                styles: [
-                    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-                ]
-            });
-
-            // ── Custom Map / Satellite Toggle ──
-            const toggleDiv = document.createElement('div');
-            toggleDiv.className = 'map-type-toggle';
-            toggleDiv.style.margin = '10px';
-
-            const btnMap = document.createElement('button');
-            btnMap.textContent = 'Map';
-            btnMap.className = 'active';
-            btnMap.type = 'button';
-
-            const btnSat = document.createElement('button');
-            btnSat.textContent = 'Satellite';
-            btnSat.type = 'button';
-
-            toggleDiv.appendChild(btnMap);
-            toggleDiv.appendChild(btnSat);
-
-            btnMap.addEventListener('click', function () {
-                map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-                btnMap.classList.add('active');
-                btnSat.classList.remove('active');
-                map.setOptions({
-                    styles: [
-                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-                    ]
-                });
-            });
-
-            btnSat.addEventListener('click', function () {
-                map.setMapTypeId(google.maps.MapTypeId.HYBRID);
-                btnSat.classList.add('active');
-                btnMap.classList.remove('active');
-                map.setOptions({ styles: [] });
-            });
-
-            map.controls[google.maps.ControlPosition.TOP_RIGHT].push(toggleDiv);
-
-            // Draggable marker
-            marker = new google.maps.Marker({
-                position: defaultPos,
-                map: map,
-                draggable: true,
-                animation: google.maps.Animation.DROP,
-                title: 'Drag to exact location'
-            });
-
-            const latInput = document.getElementById('lat');
-            const lngInput = document.getElementById('lng');
-
-            // Update hidden inputs on marker drag
-            marker.addListener('dragend', function () {
-                const pos = marker.getPosition();
-                latInput.value = pos.lat().toFixed(8);
-                lngInput.value = pos.lng().toFixed(8);
-            });
-
-            // Click on map to move marker
-            map.addListener('click', function (e) {
-                marker.setPosition(e.latLng);
-                latInput.value = e.latLng.lat().toFixed(8);
-                lngInput.value = e.latLng.lng().toFixed(8);
-            });
-
-            // ── Places Autocomplete on address input ──
-            const addressInput = document.getElementById('address-input');
-            autocomplete = new google.maps.places.Autocomplete(addressInput, {
-                componentRestrictions: { country: 'lk' }, // Restrict to Sri Lanka
-                fields: ['geometry', 'formatted_address']
-            });
-
-            autocomplete.addListener('place_changed', function () {
-                const place = autocomplete.getPlace();
-                if (!place.geometry || !place.geometry.location) return;
-
-                const loc = place.geometry.location;
-                map.setCenter(loc);
-                map.setZoom(16);
-                marker.setPosition(loc);
-                marker.setAnimation(google.maps.Animation.DROP);
-
-                latInput.value = loc.lat().toFixed(8);
-                lngInput.value = loc.lng().toFixed(8);
-            });
-
-            // ── Geocode Button (manual fallback) ──
-            document.getElementById('geocode-btn').addEventListener('click', function () {
-                const query = addressInput.value.trim();
-                if (!query) { alert('Please enter an address to locate.'); return; }
-
-                this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
-                const geocoder = new google.maps.Geocoder();
-                const btn = this;
-
-                geocoder.geocode({ address: query + ', Sri Lanka' }, function (results, status) {
-                    btn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Locate';
-
-                    if (status === 'OK' && results[0]) {
-                        const loc = results[0].geometry.location;
-                        map.setCenter(loc);
-                        map.setZoom(16);
-                        marker.setPosition(loc);
-                        marker.setAnimation(google.maps.Animation.DROP);
-
-                        latInput.value = loc.lat().toFixed(8);
-                        lngInput.value = loc.lng().toFixed(8);
-                    } else {
-                        alert('Could not find that address. Please drag the marker manually.');
-                    }
-                });
-            });
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
 
-            // ── Theme Toggle ──
-            const themeBtn = document.getElementById('theme-toggle');
-            const currentTheme = localStorage.getItem('theme') || 'light';
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
+            // ══════════════════════
+            // MAP
+            // ══════════════════════
+            const lat = <?= (float)$apt['lat'] ?>;
+            const lng = <?= (float)$apt['lng'] ?>;
+            const map = L.map('detail-map').setView([lat, lng], 15);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup('<b><?= addslashes(htmlspecialchars($apt['title'])) ?></b><br><?= addslashes(htmlspecialchars($apt['address'])) ?>')
+                .openPopup();
+
+            // ══════════════════════
+            // LIGHTBOX with nav
+            // ══════════════════════
+            const allImages = <?= json_encode($images) ?>;
+            let lbIndex = 0;
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lbCounter = document.getElementById('lb-counter');
+
+            function openLightbox(idx) {
+                lbIndex = idx;
+                lightboxImg.src = allImages[lbIndex];
+                lbCounter.textContent = (lbIndex + 1) + ' / ' + allImages.length;
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden';
             }
-            if (themeBtn) {
-                themeBtn.addEventListener('click', () => {
-                    let theme = document.documentElement.getAttribute('data-theme');
-                    if (theme === 'dark') {
-                        document.documentElement.removeAttribute('data-theme');
-                        localStorage.setItem('theme', 'light');
-                    } else {
-                        document.documentElement.setAttribute('data-theme', 'dark');
-                        localStorage.setItem('theme', 'dark');
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            document.querySelectorAll('.gallery-item img').forEach(img => {
+                img.addEventListener('click', () => openLightbox(parseInt(img.dataset.idx) || 0));
+            });
+            document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+            document.getElementById('lb-prev').addEventListener('click', (e) => {
+                e.stopPropagation();
+                lbIndex = (lbIndex - 1 + allImages.length) % allImages.length;
+                lightboxImg.src = allImages[lbIndex];
+                lbCounter.textContent = (lbIndex + 1) + ' / ' + allImages.length;
+            });
+            document.getElementById('lb-next').addEventListener('click', (e) => {
+                e.stopPropagation();
+                lbIndex = (lbIndex + 1) % allImages.length;
+                lightboxImg.src = allImages[lbIndex];
+                lbCounter.textContent = (lbIndex + 1) + ' / ' + allImages.length;
+            });
+            document.addEventListener('keydown', (e) => {
+                if (!lightbox.classList.contains('active')) return;
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowLeft') document.getElementById('lb-prev').click();
+                if (e.key === 'ArrowRight') document.getElementById('lb-next').click();
+            });
+
+            // ══════════════════════
+            // MOBILE CONTACT SECTION
+            // ══════════════════════
+            const mobileContact = document.getElementById('mobile-contact-section');
+            function checkMobile() {
+                if (window.innerWidth <= 900 && mobileContact) mobileContact.style.display = 'block';
+                else if (mobileContact) mobileContact.style.display = 'none';
+            }
+            checkMobile();
+            window.addEventListener('resize', checkMobile);
+
+            // ══════════════════════
+            // MOBILE OFFER DRAWER
+            // ══════════════════════
+            const drawerOverlay = document.getElementById('drawer-overlay');
+            const drawer = document.getElementById('offer-drawer');
+            const mobTrigger = document.getElementById('mob-offer-trigger');
+
+            function openDrawer() {
+                drawerOverlay.classList.add('active');
+                drawer.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeDrawer() {
+                drawerOverlay.classList.remove('active');
+                drawer.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (mobTrigger) mobTrigger.addEventListener('click', openDrawer);
+            if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
+
+            // ══════════════════════
+            // BID LOGIC — DESKTOP
+            // ══════════════════════
+            function setupBid(sliderId, displayId, submitId, messageId, feedbackId) {
+                const slider = document.getElementById(sliderId);
+                const display = document.getElementById(displayId);
+                const submitBtn = document.getElementById(submitId);
+                const msgInput = document.getElementById(messageId);
+                const feedback = document.getElementById(feedbackId);
+
+                if (!slider || !display || !submitBtn) return;
+
+                slider.addEventListener('input', () => {
+                    display.innerText = Number(slider.value).toLocaleString();
+                });
+
+                submitBtn.addEventListener('click', async () => {
+                    const amount = slider.value;
+                    const message = msgInput ? msgInput.value : '';
+                    const aptId = submitBtn.dataset.apt;
+
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+                    try {
+                        const fd = new FormData();
+                        fd.append('apartment_id', aptId);
+                        fd.append('amount', amount);
+                        fd.append('message', message);
+
+                        const res = await fetch('api/place_bid.php', { method: 'POST', body: fd });
+                        const data = await res.json();
+
+                        feedback.style.display = 'block';
+                        if (data.success) {
+                            feedback.style.color = '#10b981';
+                            feedback.innerText = 'Offer submitted successfully!';
+                            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Offer Sent';
+                            submitBtn.style.background = '#10b981';
+                            submitBtn.style.boxShadow = '0 4px 15px rgba(16,185,129,0.3)';
+                        } else {
+                            feedback.style.color = '#ef4444';
+                            feedback.innerText = data.error || 'Failed to submit offer.';
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Offer';
+                        }
+                    } catch (e) {
+                        feedback.style.display = 'block';
+                        feedback.style.color = '#ef4444';
+                        feedback.innerText = 'Network error. Try again.';
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Offer';
                     }
                 });
             }
 
-            // ── Type Selector (click-to-select with visual feedback) ──
-            const typeSelector = document.getElementById('type-selector');
-            if (typeSelector) {
-                typeSelector.addEventListener('click', (e) => {
-                    const label = e.target.closest('label');
-                    if (!label) return;
-                    const radio = label.querySelector('input[type="radio"]');
-                    if (!radio) return;
-                    // Clear all selected
-                    typeSelector.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('selected'));
-                    // Mark this one
-                    label.querySelector('.type-option').classList.add('selected');
+            // Desktop bid
+            setupBid('bid-slider', 'bid-amount-display', 'submit-bid-btn', 'bid-message', 'bid-feedback');
+            // Mobile bid
+            setupBid('mob-bid-slider', 'mob-bid-amount-display', 'mob-submit-bid-btn', 'mob-bid-message', 'mob-bid-feedback');
+
+            // Sync sliders if both exist
+            const deskSlider = document.getElementById('bid-slider');
+            const mobSlider = document.getElementById('mob-bid-slider');
+            if (deskSlider && mobSlider) {
+                deskSlider.addEventListener('input', () => {
+                    mobSlider.value = deskSlider.value;
+                    const mobDisplay = document.getElementById('mob-bid-amount-display');
+                    if (mobDisplay) mobDisplay.innerText = Number(deskSlider.value).toLocaleString();
+                });
+                mobSlider.addEventListener('input', () => {
+                    deskSlider.value = mobSlider.value;
+                    const deskDisplay = document.getElementById('bid-amount-display');
+                    if (deskDisplay) deskDisplay.innerText = Number(mobSlider.value).toLocaleString();
                 });
             }
-
-            // ── Mode Selector (click-to-select) ──
-            const modeSelector = document.getElementById('mode-selector');
-            if (modeSelector) {
-                modeSelector.addEventListener('click', (e) => {
-                    const label = e.target.closest('label');
-                    if (!label) return;
-                    modeSelector.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
-                    label.querySelector('.mode-option').classList.add('selected');
-                });
-            }
-
-
-            // ── Dynamic Fields per Property Type ──
-            const typeRadios = document.querySelectorAll('input[name="type"]');
-            const rowBedsBaths = document.getElementById('row-beds-baths');
-            const rowStatus = document.getElementById('row-status');
-            const grpComplex = document.getElementById('grp-complex');
-            const grpSqft = document.getElementById('grp-sqft');
-            const grpPerches = document.getElementById('grp-perches');
-            const valBeds = document.getElementById('val-beds');
-            const valBaths = document.getElementById('val-baths');
-            const valPerches = document.getElementById('val-perches');
-
-            //                    beds  baths sqft  complex status perches
-            const fieldRules = {
-                Apartment:       [true, true, true, true,   true,  false],
-                House:           [true, true, true, false,  true,  false],
-                Villa:           [true, true, true, false,  true,  false],
-                Commercial:      [false,false,true, false,  true,  false],
-                Land:            [false,false,false,false,  false, true],
-            };
-
-            function applyTypeRules(type) {
-                const [beds, baths, sqft, complex, status, perches] = fieldRules[type] || fieldRules.Apartment;
-
-                rowBedsBaths.style.display = beds ? 'grid' : 'none';
-                grpSqft.style.display      = sqft ? 'block' : 'none';
-                grpComplex.style.display   = complex ? 'block' : 'none';
-                rowStatus.style.display    = status ? 'grid' : 'none';
-                grpPerches.style.display   = perches ? 'block' : 'none';
-
-                // Required toggles
-                if (beds) { valBeds.setAttribute('required', ''); } else { valBeds.removeAttribute('required'); }
-                if (baths) { valBaths.setAttribute('required', ''); } else { valBaths.removeAttribute('required'); }
-                if (perches) { valPerches.setAttribute('required', ''); } else { valPerches.removeAttribute('required'); }
-            }
-
-            typeRadios.forEach(radio => {
-                radio.addEventListener('change', (e) => applyTypeRules(e.target.value));
-            });
-
-            // ── Image Upload (Max 5 + Preview) ──
-            const imageUpload = document.getElementById('image-upload');
-            const imagePreview = document.getElementById('image-preview');
-            const imageError = document.getElementById('image-error');
-
-            imageUpload.addEventListener('change', function () {
-                imagePreview.innerHTML = '';
-
-                if (this.files.length > 5) {
-                    imageError.style.display = 'block';
-                    this.value = '';
-                    return;
-                }
-                imageError.style.display = 'none';
-
-                Array.from(this.files).forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = e => {
-                            const img = document.createElement('img');
-                            img.src = e.target.result;
-                            imagePreview.appendChild(img);
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            });
         });
     </script>
 </body>

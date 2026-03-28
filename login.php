@@ -28,9 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - MyHomeMyLand.LK</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="terminal.css">
+    <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
-<body>
-    <div class="page-container form-page" style="margin: auto; display: flex; align-items: center; min-height: 100vh;">
+<body class="no-header">
+    <div class="page-container form-page" style="margin: auto; display: flex; align-items: center; min-height: 100vh; padding-top: 0 !important;">
         <div class="form-wrapper">
             <h2 class="text-center" style="font-family: 'Outfit'; margin-bottom: 2rem;">Welcome Back</h2>
             <?php if(isset($error)): ?>
@@ -71,5 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </footer>
 
     <script src="script.js"></script>
+    <script src="terminal.js"></script>
 </body>
 </html>

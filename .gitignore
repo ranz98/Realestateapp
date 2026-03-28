@@ -11,3 +11,6 @@ uploads/
 db.php
 ftpupdate.py
 .ftp_cache.json
+config_apikeys.php
+config.php
+config.php

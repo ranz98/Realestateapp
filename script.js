@@ -19,11 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Helper: read desktop or mobile filter value ---
-    function getVal(desktopId, mobileId) {
+    function getVal(desktopId, mobileId, dfbId) {
         const desk = document.getElementById(desktopId);
         const mob = mobileId ? document.getElementById(mobileId) : null;
+        const dfb = dfbId ? document.getElementById(dfbId) : null;
+        
+        if (dfb && dfb.offsetParent !== null) return dfb.value || '';
         if (desk && desk.offsetParent !== null) return desk.value || '';
         if (mob && mob.value) return mob.value || '';
+        if (dfb) return dfb.value || '';
         if (desk) return desk.value || '';
         return '';
     }
@@ -278,10 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fetchListings = async () => {
         try {
-            const search = getVal('search-text', 'search-text-mobile');
-            const type = getVal('filter-type', 'filter-type-mobile');
-            const location = getVal('filter-location', 'filter-location-mobile');
-            const beds = getVal('filter-beds', 'filter-beds-mobile');
+            const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
+            const type = getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type');
+            const location = getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location');
+            const beds = getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds');
             const baths = getVal('filter-baths', 'filter-baths-mobile');
             const min_price = minPriceInput?.value || '';
             const max_price = maxPriceInput?.value || '';
@@ -300,23 +304,60 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.forEach(prop => {
                         const card = document.createElement('div');
                         card.className = 'property-card';
-                        let typeIcon = '🏢', defaultImg = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
-                        if (prop.type === 'Land') { typeIcon = '🌿'; defaultImg = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=800'; }
-                        else if (prop.type === 'House' || prop.type === 'Villa') { typeIcon = '🏠'; defaultImg = 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800'; }
+
+                        // FA icon class per type
+                        const typeIcons = { Apartment:'fa-building', House:'fa-house', Villa:'fa-house-chimney-window', Commercial:'fa-store', Land:'fa-tree' };
+                        const typeIconClass = typeIcons[prop.type] || 'fa-building';
+
+                        // Default fallback images
+                        const defaults = { Land:'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=800', House:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800', Villa:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800' };
+                        const defaultImg = defaults[prop.type] || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
 
                         let imgs = [defaultImg];
                         try { const p = JSON.parse(prop.images); if (p && p.length > 0) imgs = p; } catch (e) { }
 
-                        let imagesHtml = '', dotsHtml = '';
-                        imgs.forEach((img, i) => {
-                            imagesHtml += '<img src="' + img + '" alt="' + prop.title + '" class="property-img card-img-slide" loading="lazy">';
-                            if (imgs.length > 1) dotsHtml += '<div class="card-dot ' + (i === 0 ? 'active' : '') + '"></div>';
-                        });
-                        const sliderNavHtml = imgs.length > 1 ? '<button class="card-slider-nav card-slider-prev"><i class="fa-solid fa-chevron-left"></i></button><button class="card-slider-nav card-slider-next"><i class="fa-solid fa-chevron-right"></i></button><div class="card-slider-dots">' + dotsHtml + '</div>' : '';
-                        const modeBadge = '<span class="mode-badge">' + (prop.listing_mode || currentMode) + '</span>';
-                        const bedsBathsHtml = prop.type === 'Land' ? '<span><i class="fa-solid fa-ruler-combined"></i> ' + (prop.size_perches || '-') + ' Perches</span>' : '<span><i class="fa-solid fa-bed"></i> ' + prop.bedrooms + ' Bed</span><span><i class="fa-solid fa-bath"></i> ' + prop.baths + ' Bath</span>';
+                        // Images & dots
+                        const imagesHtml = imgs.map(img => '<img src="' + img + '" alt="' + escapeHTML(prop.title) + '" class="property-img card-img-slide" loading="lazy">').join('');
+                        const dotsHtml   = imgs.length > 1 ? imgs.map((_, i) => '<div class="card-dot' + (i===0?' active':'') + '"></div>').join('') : '';
+                        const dotsBlock  = imgs.length > 1 ? '<div class="card-slider-dots">' + dotsHtml + '</div>' : '';
+                        const arrowsHtml = imgs.length > 1 ? '<button class="card-slider-nav card-slider-prev" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button><button class="card-slider-nav card-slider-next" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>' : '';
 
-                        card.innerHTML = '<div class="img-container">' + modeBadge + '<span class="type-tag">' + typeIcon + ' ' + prop.type + '</span><div class="card-slider-wrapper">' + imagesHtml + '</div>' + sliderNavHtml + '<div class="price-tag">Rs. ' + Number(prop.price).toLocaleString() + '</div></div><div class="property-info"><h3 class="property-title">' + prop.title + '</h3><div class="property-location"><i class="fa-solid fa-location-dot"></i> ' + prop.address + '</div><div class="property-metrics">' + bedsBathsHtml + '</div></div>';
+                        // Mode badge
+                        const modeText  = prop.listing_mode || currentMode;
+                        const modeClass = modeText === 'Rent' ? 'pc-mode-rent' : 'pc-mode-buy';
+                        const period    = modeText === 'Rent' ? '<small class="pc-price-per">/mo</small>' : '';
+
+                        // Price
+                        const priceFormatted = 'Rs.\u00a0' + Number(prop.price).toLocaleString();
+
+                        // Stats row
+                        const views = prop.view_count || 0;
+                        let statsHtml;
+                        if (prop.type === 'Land') {
+                            statsHtml = '<div class="pc-stat"><i class="fa-solid fa-ruler-combined"></i><span>' + (prop.size_perches||'—') + '</span><small>Perches</small></div><div class="pc-stat-sep"></div><div class="pc-stat"><i class="fa-solid fa-eye"></i><span>' + views + '</span><small>Views</small></div>';
+                        } else {
+                            statsHtml = '<div class="pc-stat"><i class="fa-solid fa-bed"></i><span>' + (prop.bedrooms||'—') + '</span><small>Bed' + (prop.bedrooms!=1?'s':'') + '</small></div><div class="pc-stat-sep"></div><div class="pc-stat"><i class="fa-solid fa-bath"></i><span>' + (prop.baths||'—') + '</span><small>Bath' + (prop.baths!=1?'s':'') + '</small></div><div class="pc-stat-sep"></div><div class="pc-stat"><i class="fa-solid fa-eye"></i><span>' + views + '</span><small>Views</small></div>';
+                        }
+
+                        card.innerHTML =
+                            '<div class="img-container">' +
+                                '<div class="card-slider-wrapper">' + imagesHtml + '</div>' +
+                                '<div class="pc-img-overlay"></div>' +
+                                '<div class="pc-top-row">' +
+                                    '<span class="pc-type-badge"><i class="fa-solid ' + typeIconClass + '"></i>&nbsp;' + escapeHTML(prop.type) + '</span>' +
+                                    '<span class="pc-mode-badge ' + modeClass + '">' + modeText + '</span>' +
+                                '</div>' +
+                                '<div class="pc-bottom-row">' +
+                                    '<div class="pc-price">' + priceFormatted + period + '</div>' +
+                                    dotsBlock +
+                                '</div>' +
+                                arrowsHtml +
+                            '</div>' +
+                            '<div class="property-info">' +
+                                '<h3 class="property-title">' + escapeHTML(prop.title) + '</h3>' +
+                                '<div class="property-location"><i class="fa-solid fa-location-dot"></i><span>' + escapeHTML(prop.address) + '</span></div>' +
+                                '<div class="pc-stats-row">' + statsHtml + '</div>' +
+                            '</div>';
 
                         let preventCardClick = false;
                         if (imgs.length > 1) {
@@ -358,6 +399,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function escapeHTML(str) { return new Option(str).innerHTML; }
     if (grid) fetchListings();
 
+    // Desktop DFB controls
+    const dfbApply = document.getElementById('dfb-apply');
+    if (dfbApply) dfbApply.addEventListener('click', fetchListings);
+    document.querySelectorAll('.t-desktop-filter-bar .filter-select').forEach(s => s.addEventListener('change', fetchListings));
+    const dfbSearch = document.getElementById('dfb-search-text');
+    if (dfbSearch) dfbSearch.addEventListener('keypress', (e) => { if(e.key === 'Enter') fetchListings(); });
+
     // Desktop controls
     const applyBtn = document.getElementById('apply-filters');
     if (applyBtn) applyBtn.addEventListener('click', fetchListings);
@@ -373,8 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear all
     function clearAll() {
-        ['search-text', 'search-text-mobile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        ['filter-type', 'filter-type-mobile', 'filter-location', 'filter-location-mobile', 'filter-beds', 'filter-beds-mobile', 'filter-baths', 'filter-baths-mobile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'All'; });
+        ['search-text', 'search-text-mobile', 'dfb-search-text'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['filter-type', 'filter-type-mobile', 'dfb-filter-type', 'filter-location', 'filter-location-mobile', 'dfb-filter-location', 'filter-beds', 'filter-beds-mobile', 'dfb-filter-beds', 'filter-baths', 'filter-baths-mobile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'All'; });
         ['filter-sort', 'filter-sort-mobile'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'newest'; });
         if (minSel) minSel.value = ''; if (maxSel) maxSel.value = '';
         if (minPriceInput) minPriceInput.value = ''; if (maxPriceInput) maxPriceInput.value = '';
@@ -383,6 +431,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const clearBtn = document.getElementById('clear-filters');
     const clearMob = document.getElementById('clear-filters-mobile');
+    const clearDfb = document.getElementById('dfb-clear');
     if (clearBtn) clearBtn.addEventListener('click', clearAll);
     if (clearMob) clearMob.addEventListener('click', clearAll);
+    if (clearDfb) clearDfb.addEventListener('click', clearAll);
 });

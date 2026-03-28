@@ -80,8 +80,10 @@ for($i=6; $i>=0; $i--) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="terminal.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.05); --glass-border: rgba(255, 255, 255, 0.1); }
         [data-theme="dark"] { --glass: rgba(0, 0, 0, 0.2); --glass-border: rgba(255, 255, 255, 0.05); }
@@ -248,6 +250,7 @@ for($i=6; $i>=0; $i--) {
     </footer>
 
     <script src="script.js"></script>
+    <script src="terminal.js"></script>
     <script>
         // Chart.js - Mission Activity Pulse
         const ctx = document.getElementById('activityChart').getContext('2d');
