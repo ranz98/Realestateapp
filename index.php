@@ -60,6 +60,14 @@ require_once 'auth_check.php';
             </div>
         </nav>
 
+        <!-- Active filters bar — mobile only, shows selected filters as removable pills -->
+        <div class="t-active-bar" id="t-active-bar" aria-label="Active filters">
+            <div class="t-active-pills" id="t-active-pills"></div>
+            <button class="t-active-clear" id="t-active-clear" aria-label="Clear all filters" title="Clear all">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
     </header>
 
     <!-- ═══ DESKTOP VISIBLE FILTER BAR (Moved down from header) ═══ -->
@@ -308,8 +316,8 @@ require_once 'auth_check.php';
     <!-- ── Fixed floating filter button ── -->
     <button class="t-fab-filters" id="t-fab-filters" aria-label="Open filters" title="Search & Filters">
         <i class="fa-solid fa-sliders"></i>
-        <span class="t-fab-label">Filters</span>
     </button>
+
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
@@ -329,22 +337,4 @@ require_once 'auth_check.php';
         // Sync "More Filters" modal selects → overlay selects
         [['filter-type-mobile','filter-type'],['filter-location-mobile','filter-location'],
          ['filter-beds-mobile','filter-beds'],['filter-baths-mobile','filter-baths'],
-         ['filter-sort-mobile','filter-sort']].forEach(([m,d]) => {
-            const mob = document.getElementById(m), desk = document.getElementById(d);
-            if (mob && desk) mob.addEventListener('change', () => { desk.value = mob.value; desk.dispatchEvent(new Event('change')); });
-        });
-
-        // More Filters modal clear → overlay clear
-        const cMob = document.getElementById('clear-filters-mobile');
-        const cDesk = document.getElementById('clear-filters');
-        if (cMob && cDesk) cMob.addEventListener('click', () => cDesk.click());
-    });
-    </script>
-    <!-- ── Fixed floating filter button ── -->
-    <button class="t-fab-filters" id="t-fab-filters" aria-label="Open filters" title="Search & Filters">
-        <i class="fa-solid fa-sliders"></i>
-        <span class="t-fab-label">Filters</span>
-    </button>
-
-</body>
-</html>                                                                                                                                                                   
+   

@@ -71,10 +71,7 @@
         const ham = document.createElement('button');
         ham.className = 't-hamburger';
         ham.setAttribute('aria-label', 'Toggle navigation');
-        ham.innerHTML = `
-            <span class="t-hamburger-bar"></span>
-            <span class="t-hamburger-bar"></span>
-            <span class="t-hamburger-bar"></span>`;
+        ham.innerHTML = `<i class="fa-solid fa-ellipsis-vertical"></i>`;
         navbar.appendChild(ham);
 
         /* ── 2. Build overlay ── */
@@ -129,6 +126,21 @@
             </button>`;
         }
 
+        /* Language switcher row */
+        linksHTML += `
+            <div class="t-drawer-sep"></div>
+            <div class="t-drawer-lang">
+                <span class="t-drawer-lang-label">
+                    <span class="t-nav-icon"><i class="fa-solid fa-language"></i></span>
+                    Language
+                </span>
+                <div class="t-drawer-lang-opts">
+                    <button class="t-drawer-lang-btn t-drawer-lang-active" data-lang="si">සිංහල</button>
+                    <button class="t-drawer-lang-btn" data-lang="en">English</button>
+                    <button class="t-drawer-lang-btn" data-lang="ta">தமிழ்</button>
+                </div>
+            </div>`;
+
         const yr = new Date().getFullYear();
         drawer.innerHTML = `
             <div class="t-drawer-head">
@@ -174,6 +186,14 @@
         /* Close at desktop width */
         window.matchMedia('(min-width: 993px)').addEventListener('change', e => {
             if (e.matches && isOpen) closeMenu();
+        });
+
+        /* ── 5b. Language buttons ── */
+        drawer.querySelectorAll('.t-drawer-lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                drawer.querySelectorAll('.t-drawer-lang-btn').forEach(b => b.classList.remove('t-drawer-lang-active'));
+                btn.classList.add('t-drawer-lang-active');
+            });
         });
 
         /* ── 5. Drawer theme toggle syncs with main toggle ── */
@@ -484,6 +504,120 @@
     }
 
     /* ================================================================
+       ACTIVE FILTERS BAR  — shows selected filters as removable pills
+       ================================================================ */
+    function initActiveFiltersBar() {
+        const bar      = document.getElementById('t-active-bar');
+        const pillsCon = document.getElementById('t-active-pills');
+        const clearAll = document.getElementById('t-active-clear');
+        if (!bar || !pillsCon) return;
+
+        /* Map of filter id → { label, default value } */
+        const FILTERS = [
+            { id: 'search-text',           label: 'Search',   def: '',        isInput: true },
+            { id: 'filter-type-mobile',     label: 'Type',     def: 'All' },
+            { id: 'filter-location-mobile', label: 'Location', def: 'All' },
+            { id: 'filter-beds-mobile',     label: 'Beds',     def: 'All' },
+            { id: 'filter-baths-mobile',    label: 'Baths',    def: 'All' },
+            { id: 'filter-sort-mobile',     label: 'Sort',     def: 'newest' },
+        ];
+
+        function buildPills() {
+            pillsCon.innerHTML = '';
+            let active = 0;
+
+            FILTERS.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (!el) return;
+                const val = el.value;
+                if (f.isInput ? val.trim() === '' : val === f.def) return;
+                active++;
+                const pill = document.createElement('div');
+                pill.className = 't-active-pill';
+                /* Display value: for selects use selectedOptions text, for inputs use value */
+                const display = f.isInput
+                    ? '"' + val + '"'
+                    : (el.selectedOptions && el.selectedOptions[0]
+                        ? el.selectedOptions[0].text
+                        : val);
+                pill.innerHTML =
+                    '<span>' + display + '</span>' +
+                    '<button class="t-apill-remove" data-id="' + f.id + '" data-def="' + f.def + '" data-input="' + (f.isInput ? '1' : '') + '" aria-label="Remove">' +
+                    '<i class="fa-solid fa-xmark"></i></button>';
+                pillsCon.appendChild(pill);
+            });
+
+            /* Price range pill — show when non-zero min or non-max max */
+            const minSel = document.getElementById('filter-min-price-select');
+            const maxSel = document.getElementById('filter-max-price-select');
+            const priceDisp = document.getElementById('price-range-display');
+            if (minSel && maxSel && (minSel.value || maxSel.value)) {
+                active++;
+                const pill = document.createElement('div');
+                pill.className = 't-active-pill';
+                const txt = priceDisp ? priceDisp.innerText : 'Price';
+                pill.innerHTML =
+                    '<span>' + txt + '</span>' +
+                    '<button class="t-apill-remove" data-id="price" data-def="" aria-label="Remove price">' +
+                    '<i class="fa-solid fa-xmark"></i></button>';
+                pillsCon.appendChild(pill);
+            }
+
+            bar.classList.toggle('has-filters', active > 0);
+        }
+
+        /* Remove individual filter when pill X is clicked */
+        pillsCon.addEventListener('click', function (e) {
+            const btn = e.target.closest('.t-apill-remove');
+            if (!btn) return;
+            const id = btn.dataset.id;
+
+            if (id === 'price') {
+                const minSel = document.getElementById('filter-min-price-select');
+                const maxSel = document.getElementById('filter-max-price-select');
+                if (minSel) minSel.value = '';
+                if (maxSel) maxSel.value = '';
+                const slider = document.getElementById('price-slider');
+                if (slider && slider.noUiSlider) slider.noUiSlider.reset();
+            } else {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.value = btn.dataset.def || '';
+            }
+
+            /* Re-run the search (clicks apply-filters; overlay is closed so closeOverlay is a no-op) */
+            const applyBtn = document.getElementById('apply-filters');
+            if (applyBtn) applyBtn.click();
+            buildPills();
+        });
+
+        /* Clear all → delegate to existing clear button */
+        if (clearAll) {
+            clearAll.addEventListener('click', function () {
+                const clearBtn = document.getElementById('clear-filters');
+                if (clearBtn) clearBtn.click();
+                buildPills();
+            });
+        }
+
+        /* Re-evaluate after every apply-filters click */
+        const applyBtn = document.getElementById('apply-filters');
+        if (applyBtn) applyBtn.addEventListener('click', function () {
+            /* Small delay lets script.js finish fetching then we refresh pills */
+            setTimeout(buildPills, 60);
+        });
+
+        /* Also watch select changes live (user adjusts inside open overlay) */
+        FILTERS.forEach(function (f) {
+            const el = document.getElementById(f.id);
+            if (!el) return;
+            el.addEventListener(f.isInput ? 'input' : 'change', buildPills);
+        });
+
+        buildPills(); /* initial state */
+    }
+
+    /* ================================================================
        INIT — DOMContentLoaded entry point
        ================================================================ */
     function init() {
@@ -503,7 +637,9 @@
         initSearchOverlay();
         initTypewriter();
         initNavPill();
+        initActiveFiltersBar();
     }
+
 
     document.addEventListener('DOMContentLoaded', init);
 
