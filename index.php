@@ -57,60 +57,8 @@ require_once 'auth_check.php';
                     <a href="login.php">Login</a>
                     <a href="register.php" class="btn-primary">Sign Up</a>
                 <?php endif; ?>
-                <!-- Mobile-only: Filters | Search — right-aligned -->
-                <button class="t-filters-trigger" id="t-filters-trigger" title="Filters">
-                    <i class="fa-solid fa-sliders"></i>
-                </button>
-                <!-- (Search removed, integrated into pill) -->
             </div>
         </nav>
-
-        <!-- ═══ MORE FILTERS MODAL (price slider etc.) ═══ -->
-        <div class="filters-modal" id="filters-modal">
-            <div class="filters-modal-header">
-                <h3>More Filters</h3>
-                <button class="close-filters-btn" id="close-filters-btn"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="filters-modal-body">
-                <div class="filters-grid">
-                    <div class="filter-group">
-                        <label>Property Type</label>
-                        <select id="filter-type-mobile" class="filter-select"><option value="All">Type</option><option value="Apartment">Apartment</option><option value="House">House</option><option value="Villa">Villa</option><option value="Commercial">Commercial</option><option value="Land">Land</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Location</label>
-                        <select id="filter-location-mobile" class="filter-select"><option value="All">Location</option><option value="Colombo">Colombo</option><option value="Kotte">Kotte</option><option value="Dehiwala">Dehiwala</option><option value="Kandy">Kandy</option><option value="Galle">Galle</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Beds</label>
-                        <select id="filter-beds-mobile" class="filter-select"><option value="All">Beds</option><option value="1">1 Bed</option><option value="2">2 Beds</option><option value="3+">3+ Beds</option><option value="studio">Studio</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Baths</label>
-                        <select id="filter-baths-mobile" class="filter-select"><option value="All">Baths</option><option value="1">1 Bath</option><option value="2">2 Baths</option><option value="3+">3+ Baths</option></select>
-                    </div>
-                    <div class="filter-group price-group">
-                        <label>Price Range</label>
-                        <div class="price-slider-container">
-                            <div id="price-slider"></div>
-                            <div id="price-range-display" class="price-display">Rs. 0 - Rs. 500k</div>
-                        </div>
-                    </div>
-                    <div class="filter-group">
-                        <label>Sort By</label>
-                        <select id="filter-sort-mobile" class="filter-select"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="price_low">Price ↑</option><option value="price_high">Price ↓</option><option value="trending">Trending</option></select>
-                    </div>
-                    <div class="filter-group">
-                        <button id="clear-filters-mobile" class="filter-select clear-btn">Clear All</button>
-                    </div>
-                </div>
-            </div>
-            <div class="filters-modal-footer">
-                <button id="apply-filters-mobile" class="btn-primary filters-apply-btn">
-                    <i class="fa-solid fa-magnifying-glass"></i> Apply Filters
-                </button>
-            </div>
-        </div><!-- /.filters-modal -->
 
     </header>
 
@@ -269,6 +217,81 @@ require_once 'auth_check.php';
                 <button class="t-chip" data-q="Kandy"><i class="fa-solid fa-location-dot"></i> Kandy</button>
             </div>
 
+            <!-- Filters grid -->
+            <div class="t-so-filters">
+                <div class="t-so-filters-grid">
+                    <div class="t-so-filter-group">
+                        <div class="t-pill-select-wrapper">
+                            <i class="fa-solid fa-building"></i>
+                            <select id="filter-type-mobile" class="filter-select t-pill-select">
+                                <option value="All">Type: All</option>
+                                <option value="Apartment">Apartment</option>
+                                <option value="House">House</option>
+                                <option value="Villa">Villa</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Land">Land</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="t-so-filter-group">
+                        <div class="t-pill-select-wrapper">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <select id="filter-location-mobile" class="filter-select t-pill-select">
+                                <option value="All">Location: All</option>
+                                <option value="Colombo">Colombo</option>
+                                <option value="Kotte">Kotte</option>
+                                <option value="Dehiwala">Dehiwala</option>
+                                <option value="Kandy">Kandy</option>
+                                <option value="Galle">Galle</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="t-so-filter-group">
+                        <div class="t-pill-select-wrapper">
+                            <i class="fa-solid fa-bed"></i>
+                            <select id="filter-beds-mobile" class="filter-select t-pill-select">
+                                <option value="All">Beds: Any</option>
+                                <option value="1">1 Bed</option>
+                                <option value="2">2 Beds</option>
+                                <option value="3+">3+ Beds</option>
+                                <option value="studio">Studio</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="t-so-filter-group">
+                        <div class="t-pill-select-wrapper">
+                            <i class="fa-solid fa-bath"></i>
+                            <select id="filter-baths-mobile" class="filter-select t-pill-select">
+                                <option value="All">Baths: Any</option>
+                                <option value="1">1 Bath</option>
+                                <option value="2">2 Baths</option>
+                                <option value="3+">3+ Baths</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="t-so-filter-group">
+                        <div class="t-pill-select-wrapper">
+                            <i class="fa-solid fa-sort"></i>
+                            <select id="filter-sort-mobile" class="filter-select t-pill-select">
+                                <option value="newest">Sort: Newest</option>
+                                <option value="oldest">Oldest</option>
+                                <option value="price_low">Price ↑</option>
+                                <option value="price_high">Price ↓</option>
+                                <option value="trending">Trending</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <!-- Price Range -->
+                <div class="t-so-filter-group t-so-price-group">
+                    <label>Price Range</label>
+                    <div class="price-slider-container">
+                        <div id="price-slider"></div>
+                        <div id="price-range-display" class="price-display">Rs. 0 - Rs. 500k</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="t-so-actions">
                 <button id="clear-filters" class="t-so-clear-btn">
@@ -281,6 +304,12 @@ require_once 'auth_check.php';
 
         </div>
     </div><!-- /.t-search-overlay -->
+
+    <!-- ── Fixed floating filter button ── -->
+    <button class="t-fab-filters" id="t-fab-filters" aria-label="Open filters" title="Search & Filters">
+        <i class="fa-solid fa-sliders"></i>
+        <span class="t-fab-label">Filters</span>
+    </button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
@@ -311,5 +340,11 @@ require_once 'auth_check.php';
         if (cMob && cDesk) cMob.addEventListener('click', () => cDesk.click());
     });
     </script>
+    <!-- ── Fixed floating filter button ── -->
+    <button class="t-fab-filters" id="t-fab-filters" aria-label="Open filters" title="Search & Filters">
+        <i class="fa-solid fa-sliders"></i>
+        <span class="t-fab-label">Filters</span>
+    </button>
+
 </body>
-</html>
+</html>                                                                                                                                                                   

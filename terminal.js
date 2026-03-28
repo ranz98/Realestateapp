@@ -62,8 +62,8 @@
        MOBILE HAMBURGER + DRAWER
        ================================================================ */
     function initMobileMenu() {
-        const header  = document.querySelector('.site-header');
-        const navbar  = document.querySelector('.navbar');
+        const header = document.querySelector('.site-header');
+        const navbar = document.querySelector('.navbar');
         const navLinks = document.querySelector('.nav-links');
         if (!navbar || !navLinks) return;
 
@@ -92,20 +92,20 @@
         /* Clone links from desktop nav */
         const linkDefs = [];
         navLinks.querySelectorAll('a').forEach(a => {
-            const txt    = a.textContent.trim();
-            const href   = a.getAttribute('href') || '#';
-            const isCta  = a.classList.contains('btn-primary');
+            const txt = a.textContent.trim();
+            const href = a.getAttribute('href') || '#';
+            const isCta = a.classList.contains('btn-primary');
             const isActive = a.classList.contains('active');
-            let   icon   = 'circle';
+            let icon = 'circle';
             const tl = txt.toLowerCase();
             if (tl.includes('explore') || href.includes('index')) icon = 'magnifying-glass';
-            else if (tl.includes('dashboard'))                      icon = 'table-columns';
-            else if (tl.includes('admin'))                          icon = 'shield-halved';
+            else if (tl.includes('dashboard')) icon = 'table-columns';
+            else if (tl.includes('admin')) icon = 'shield-halved';
             else if (tl.includes('list') || tl.includes('property')) icon = 'plus-circle';
-            else if (tl.includes('login'))                          icon = 'right-to-bracket';
+            else if (tl.includes('login')) icon = 'right-to-bracket';
             else if (tl.includes('sign') || tl.includes('register')) icon = 'user-plus';
-            else if (tl.includes('logout'))                         icon = 'right-from-bracket';
-            else if (tl.includes('profile'))                        icon = 'user';
+            else if (tl.includes('logout')) icon = 'right-from-bracket';
+            else if (tl.includes('profile')) icon = 'user';
             linkDefs.push({ txt, href, isCta, isActive, icon });
         });
 
@@ -178,14 +178,14 @@
 
         /* ── 5. Drawer theme toggle syncs with main toggle ── */
         const drawerTheme = document.getElementById('t-drawer-theme');
-        const mainTheme   = document.getElementById('theme-toggle') || document.querySelector('.theme-toggle');
+        const mainTheme = document.getElementById('theme-toggle') || document.querySelector('.theme-toggle');
         if (drawerTheme && mainTheme) {
             drawerTheme.addEventListener('click', () => {
                 mainTheme.click();
                 const d = isDark();
-                const iconEl  = document.getElementById('t-drawer-theme-icon');
+                const iconEl = document.getElementById('t-drawer-theme-icon');
                 const labelEl = document.getElementById('t-drawer-theme-label');
-                if (iconEl)  iconEl.innerHTML  = `<i class="fa-solid ${d ? 'fa-sun' : 'fa-moon'}"></i>`;
+                if (iconEl) iconEl.innerHTML = `<i class="fa-solid ${d ? 'fa-sun' : 'fa-moon'}"></i>`;
                 if (labelEl) labelEl.textContent = d ? 'Light Mode' : 'Dark Mode';
             });
         }
@@ -283,16 +283,14 @@
        SEARCH OVERLAY — Open/close + chip interaction
        ================================================================ */
     function initSearchOverlay() {
-        const overlay  = document.getElementById('t-search-overlay');
+        const overlay = document.getElementById('t-search-overlay');
         const backdrop = document.getElementById('t-so-backdrop');
         const closeBtn = document.getElementById('t-search-close');
-        const trigger  = document.getElementById('t-search-trigger');
-        const input    = document.getElementById('search-text');
+        const trigger = document.getElementById('t-search-trigger');
+        const input = document.getElementById('search-text');
         const applyBtn = document.getElementById('apply-filters');
-        const moreBtn  = document.getElementById('t-more-filters-btn');
-        const filterModal = document.getElementById('filters-modal');
 
-        if (!overlay || !trigger) return;
+        if (!overlay) return;
 
         function openOverlay() {
             overlay.classList.add('is-open');
@@ -308,9 +306,13 @@
             document.body.style.overflow = '';
         }
 
-        trigger.addEventListener('click', openOverlay);
+        /* trigger may be absent on mobile (pill handles open instead) */
+        trigger && trigger.addEventListener('click', openOverlay);
+        /* Floating filter button — always opens the overlay */
+        const fab = document.getElementById('t-fab-filters');
+        fab && fab.addEventListener('click', openOverlay);
         backdrop && backdrop.addEventListener('click', closeOverlay);
-        closeBtn  && closeBtn.addEventListener('click', closeOverlay);
+        closeBtn && closeBtn.addEventListener('click', closeOverlay);
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeOverlay();
         });
@@ -351,23 +353,24 @@
 
         const phrases = [
             'Apartment in Colombo',
-            'House in Dehiwala',
-            'House close to Moratuwa',
-            'Villa in Galle',
-            'Studio near Kandy',
-            'Commercial in Kotte',
+            '30 mins drive from WTC in traffic',
+            'Walking distance to Royal College with AC',
+            'Apartment near SLIIT with AC',
+            'Apartment 15 mins drive from SLIIT with AC',
+            'Villa in galle with swimming pool',
+            '7-storey commerical building in Kotte',
         ];
 
-        const TYPE_MS   = 65;
-        const DEL_MS    = 28;
-        const PAUSE_END = 2200;
-        const PAUSE_NEW = 450;
+        const TYPE_MS = 55;
+        const DEL_MS = 25;
+        const PAUSE_END = 1800;
+        const PAUSE_NEW = 400;
 
         let phraseIdx = 0;
-        let charIdx   = 0;
-        let deleting  = false;
-        let timer     = null;
-        let paused    = false;
+        let charIdx = 0;
+        let deleting = false;
+        let timer = null;
+        let paused = false;
 
         function tick() {
             if (paused) return;
@@ -386,7 +389,7 @@
                 charIdx--;
                 textEl.textContent = phrase.slice(0, charIdx);
                 if (charIdx === 0) {
-                    deleting  = false;
+                    deleting = false;
                     phraseIdx = (phraseIdx + 1) % phrases.length;
                     timer = setTimeout(tick, PAUSE_NEW);
                     return;
@@ -422,8 +425,8 @@
        NAV PILL — Animated pill search bar (desktop, left of logo)
        ================================================================ */
     function initNavPill() {
-        const pill    = document.getElementById('t-nav-pill');
-        const textEl  = document.getElementById('t-nav-tw-text');
+        const pill = document.getElementById('t-nav-pill');
+        const textEl = document.getElementById('t-nav-tw-text');
         const overlay = document.getElementById('t-search-overlay');
         if (!pill || !textEl || !overlay) return;
 
@@ -441,12 +444,14 @@
         /* Typewriter — same phrases, same timing as the overlay */
         const phrases = [
             'Apartment in Colombo',
-            'House in Dehiwala',
-            'Villa in Galle',
-            'Studio near Kandy',
-            'Commercial in Kotte',
+            '30 mins drive from WTC in traffic',
+            'Walking distance to Royal College with AC',
+            'Flat near SLIIT with AC',
+            'Apartment 15 mins drive from SLIIT with AC',
+            'Villa in Galle with swimming pool',
+            '7-storey commerical building in Kotte',
         ];
-        const TYPE_MS = 65, DEL_MS = 28, PAUSE_END = 2200, PAUSE_NEW = 450;
+        const TYPE_MS = 55, DEL_MS = 25, PAUSE_END = 1800, PAUSE_NEW = 400;
         let phraseIdx = 0, charIdx = 0, deleting = false, timer = null;
 
         function tick() {
@@ -479,31 +484,6 @@
     }
 
     /* ================================================================
-       FILTERS TRIGGER — Opens the filters modal from navbar button
-       ================================================================ */
-    function initFiltersTrigger() {
-        const filtersTrigger = document.getElementById('t-filters-trigger');
-        const filtersModal   = document.getElementById('filters-modal');
-        const closeFiltersBtn = document.getElementById('close-filters-btn');
-        const applyMobileBtn  = document.getElementById('apply-filters-mobile');
-
-        if (!filtersTrigger || !filtersModal) return;
-
-        function openFilters() {
-            filtersModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-        function closeFilters() {
-            filtersModal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
-        filtersTrigger.addEventListener('click', openFilters);
-        closeFiltersBtn && closeFiltersBtn.addEventListener('click', closeFilters);
-        applyMobileBtn  && applyMobileBtn.addEventListener('click', closeFilters);
-    }
-
-    /* ================================================================
        INIT — DOMContentLoaded entry point
        ================================================================ */
     function init() {
@@ -523,13 +503,8 @@
         initSearchOverlay();
         initTypewriter();
         initNavPill();
-        initFiltersTrigger();
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    document.addEventListener('DOMContentLoaded', init);
 
 })();
