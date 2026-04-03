@@ -7,7 +7,7 @@ update_schema.sql
 .jpeg
 *.jpeg
 uploads/
-
+.env
 db.php
 ftpupdate.py
 .ftp_cache.json
