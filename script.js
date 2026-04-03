@@ -24,11 +24,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const mob = mobileId ? document.getElementById(mobileId) : null;
         const dfb = dfbId ? document.getElementById(dfbId) : null;
         
+        // Priority 1: Visible elements (offsetParent !== null)
         if (dfb && dfb.offsetParent !== null) return dfb.value || '';
         if (desk && desk.offsetParent !== null) return desk.value || '';
-        if (mob && mob.value) return mob.value || '';
-        if (dfb) return dfb.value || '';
-        if (desk) return desk.value || '';
+        if (mob && mob.offsetParent !== null) return mob.value || '';
+
+        // Priority 2: Any truthy value (even if hidden, e.g. in a display:none container)
+        if (mob && mob.value) return mob.value;
+        if (desk && desk.value) return desk.value;
+        if (dfb && dfb.value) return dfb.value;
+        
         return '';
     }
 
@@ -447,12 +452,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            const res = await fetch('api/get_apartments.php?' + params.toString(), { signal: controller.signal });
+            const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for mobile
+            const fetchUrl = 'api/get_apartments.php?' + params.toString();
+            const res = await fetch(fetchUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
 
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Server error: ${res.status} ${res.statusText}. Response: ${errText.substring(0, 100)}`);
+            }
+
             const data = await res.json();
-            if (!Array.isArray(data)) throw new Error(data.error || 'Unexpected API response');
+            if (!Array.isArray(data)) throw new Error(data.error || 'Unexpected API response format');
+
+            // Reset retry flag on success
+            _fetchRetried = false;
 
             if (grid) {
                 grid.innerHTML = '';
