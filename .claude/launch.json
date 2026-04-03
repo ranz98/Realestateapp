@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "xampp",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "ping -t localhost > nul"],
+      "port": 80
+    }
+  ]
+}

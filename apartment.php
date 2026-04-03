@@ -49,8 +49,8 @@ $featureIcons = [
     <title><?= htmlspecialchars($apt['title']) ?> - MyHomeMyLand.LK</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="terminal.css">
+    <link rel="stylesheet" href="style.css?v=3.6">
+<link rel="stylesheet" href="terminal.css?v=3.6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -65,13 +65,15 @@ $featureIcons = [
     /* ═══════════════════════════════
        GALLERY — DESKTOP: big+stack / MOBILE: slider
        ═══════════════════════════════ */
-    .gal{display:grid;grid-template-columns:1.7fr 1fr;grid-template-rows:1fr 1fr;gap:5px;border-radius:14px;overflow:hidden;margin-bottom:1.5rem;height:400px;position:relative;}
-    .gal-item{overflow:hidden;cursor:pointer;position:relative;background:var(--bg-main);}
-    .gal-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.45s ease;}
-    .gal-item:hover img{transform:scale(1.04);}
-    .gal-item.hero{grid-row:1/-1;}
-    .gal-more{position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.05rem;backdrop-filter:blur(2px);pointer-events:none;}
+    /* ═══ DESKTOP: Image (60%) | Map (40%) side by side ═══ */
+    .gal{display:flex;gap:10px;margin-bottom:1.5rem;height:420px;position:relative;}
+    .gal-hero-side{flex:0 0 60%;border-radius:14px;overflow:hidden;position:relative;cursor:pointer;background:var(--bg-main);}
+    .gal-hero-side img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.45s ease;}
+    .gal-hero-side:hover img{transform:scale(1.03);}
+    .gal-map-side{flex:1;border-radius:14px;overflow:hidden;border:1px solid var(--border-glass);position:relative;background:var(--bg-main);}
+    .gal-map-side #detail-map{width:100%;height:100%;}
     .gal-badge{position:absolute;bottom:12px;left:12px;background:rgba(0,0,0,0.55);color:#fff;padding:0.25rem 0.65rem;border-radius:6px;font-size:0.75rem;font-weight:600;z-index:10;backdrop-filter:blur(6px);display:flex;align-items:center;gap:0.3rem;}
+    .gal-map-label{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.5);color:#fff;padding:0.2rem 0.55rem;border-radius:6px;font-size:0.72rem;font-weight:600;backdrop-filter:blur(6px);display:flex;align-items:center;gap:0.3rem;z-index:10;pointer-events:none;}
 
     /* Mobile slider (hidden on desktop) */
     .gal-mobile{display:none;position:relative;border-radius:14px;overflow:hidden;margin-bottom:1.5rem;height:240px;background:var(--bg-main);}
@@ -211,6 +213,10 @@ $featureIcons = [
     .bh-date{font-size:0.7rem;color:var(--text-secondary);margin-top:0.1rem;}
     .bh-ok{margin-top:0.35rem;padding-top:0.35rem;border-top:1px solid rgba(0,0,0,0.04);font-size:0.75rem;color:#065f46;font-weight:500;}
 
+    /* Mobile-only location map */
+    .mob-gal-split{display:none;}
+    .map-overlay-lab{position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.5);color:#fff;font-size:0.65rem;padding:0.2rem 0.5rem;border-radius:4px;font-weight:600;z-index:900;backdrop-filter:blur(4px);pointer-events:none;}
+
     /* ═══ MOBILE BAR ═══ */
     .mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg-card,#fff);border-top:1px solid var(--border-glass);padding:0.55rem 0.8rem;z-index:1000;box-shadow:0 -3px 16px rgba(0,0,0,0.07);align-items:center;gap:0.5rem;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
     .mob-bar .mb-price{flex:1;min-width:0;}
@@ -248,9 +254,13 @@ $featureIcons = [
         .sticky-bar{display:none !important;}
         .dp{padding-bottom:5rem;}
     }
+    }
     @media(max-width:768px){
-        .gal{display:none;}
-        .gal-mobile{display:block;}
+        .gal{display:none !important;}
+        .mob-gal-split{display:flex;gap:8px;margin-bottom:1.5rem;height:180px;}
+        .gal-mobile{display:block;flex:1;height:100%;margin-bottom:0;}
+        .mob-map-wrap{display:block;flex:1;height:100%;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border-glass);}
+        .mob-map-wrap .dp-map{height:100%;border-radius:0;border:none;margin:0;}
         .key-specs{gap:0.5rem;padding:0.7rem 0.8rem;}
         .ks-item{padding-right:0.5rem;}
         .am-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));}
@@ -265,12 +275,14 @@ $featureIcons = [
         .ks-item{border-right:none;padding-right:0;}
         .ks-icon{width:28px;height:28px;font-size:0.75rem;border-radius:6px;}
         .ks-val{font-size:0.82rem;}
-        .gal-mobile{height:210px;}
+        .mob-gal-split{height:140px;}
         .am-grid{grid-template-columns:repeat(2,1fr);}
         .am-chip{font-size:0.75rem;padding:0.38rem 0.5rem;}
     }
     @media(max-width:400px){
-        .gal-mobile{height:190px;border-radius:10px;}
+        .mob-gal-split{height:125px;}
+        .gal-mobile{border-radius:10px;}
+        .mob-map-wrap{border-radius:10px;}
         .mob-bar .mb-offer{padding:0.5rem 0.8rem;font-size:0.78rem;}
         .mob-bar .mb-pv{font-size:0.95rem;}
         .mob-bar{padding:0.5rem 0.6rem;gap:0.4rem;}
@@ -290,13 +302,36 @@ $featureIcons = [
 <body>
     <header class="site-header">
         <nav class="navbar">
-            <a href="index.php" class="logo" style="text-decoration:none;"><i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK</a>
+
+            <!-- ── Logo: icon + wordmark (2-line on mobile) ── -->
+            <a href="index.php" class="t-logo" style="text-decoration:none;">
+                <i class="fa-solid fa-house-chimney-window t-logo-icon"></i>
+                <span class="t-logo-words">
+                    <span class="t-logo-top">MyHome</span>
+                    <span class="t-logo-bot">MyLand</span>
+                </span>
+            </a>
+
+            <div class="t-nav-left" id="t-nav-pill" role="button" tabindex="0" aria-label="Search properties">
+                <span class="t-nav-pill-tw">
+                    <span id="t-nav-tw-text"></span><span class="t-tw-cursor">|</span>
+                </span>
+                <i class="fa-solid fa-magnifying-glass t-nav-pill-icon"></i>
+            </div>
+
+            <!-- ── Mobile Filter Trigger (Next to search) ── -->
+            <button class="t-nav-filter-btn" id="t-nav-filter-btn" aria-label="Open filters" title="Search & Filters">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+
+            <!-- ── Right: Desktop links + Mobile action buttons ── -->
             <div class="nav-links">
-                <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode"><i class="fa-solid fa-moon"></i><i class="fa-solid fa-sun" style="display:none;"></i></button>
+                <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode"><i class="fa-solid fa-moon"></i></button>
                 <a href="index.php">Explore</a>
                 <?php if($isLoggedIn): ?>
                     <a href="dashboard.php">Dashboard</a>
                     <?php if($_SESSION['user_role']==='admin'): ?><a href="admin.php">Admin</a><?php endif; ?>
+                    <a href="list-apartment.php" class="btn-primary">List Property</a>
                     <a href="logout.php">Logout</a>
                 <?php else: ?>
                     <a href="login.php">Login</a>
@@ -304,6 +339,15 @@ $featureIcons = [
                 <?php endif; ?>
             </div>
         </nav>
+
+        <!-- Active filters bar — mobile only -->
+        <div class="t-active-bar" id="t-active-bar" aria-label="Active filters">
+            <div class="t-active-pills" id="t-active-pills"></div>
+            <button class="t-active-clear" id="t-active-clear" aria-label="Clear all filters" title="Clear all">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
     </header>
 
     <!-- ═══ STICKY INFO BAR (desktop scroll) ═══ -->
@@ -325,35 +369,43 @@ $featureIcons = [
     <div class="dp">
         <a href="index.php" class="dp-back"><i class="fa-solid fa-arrow-left"></i> Back to listings</a>
 
-        <!-- ═══ DESKTOP GALLERY ═══ -->
+        <!-- ═══ DESKTOP: Hero Image (60%) | Location Map (40%) ═══ -->
         <div class="gal">
-            <div class="gal-item hero" data-i="0"><img src="<?= htmlspecialchars($images[0]) ?>" alt="<?= htmlspecialchars($apt['title']) ?>"></div>
-            <?php
-            $thumbCount = min(count($images)-1, 2);
-            $remaining = count($images)-1-$thumbCount;
-            for($i=1;$i<=$thumbCount;$i++):
-            ?>
-                <div class="gal-item thumb" data-i="<?= $i ?>">
-                    <img src="<?= htmlspecialchars($images[$i]) ?>" alt="Photo <?= $i+1 ?>">
-                    <?php if($i===$thumbCount && $remaining>0): ?><div class="gal-more">+<?= $remaining ?> more</div><?php endif; ?>
-                </div>
-            <?php endfor; ?>
-            <?php if(count($images)>1): ?><div class="gal-badge"><i class="fa-solid fa-images"></i> <?= count($images) ?></div><?php endif; ?>
+            <!-- Left: main hero image -->
+            <div class="gal-hero-side" data-i="0">
+                <img src="<?= htmlspecialchars($images[0]) ?>" alt="<?= htmlspecialchars($apt['title']) ?>">
+                <?php if(count($images)>1): ?><div class="gal-badge"><i class="fa-solid fa-images"></i> <?= count($images) ?> photos</div><?php endif; ?>
+            </div>
+            <!-- Right: interactive location map -->
+            <div class="gal-map-side">
+                <div class="gal-map-label"><i class="fa-solid fa-map-location-dot"></i> Location</div>
+                <div id="detail-map"></div>
+            </div>
         </div>
 
-        <!-- ═══ MOBILE GALLERY — AUTO SLIDER ═══ -->
-        <div class="gal-mobile" id="gal-mobile">
-            <?php foreach($images as $i=>$img): ?>
-                <img src="<?= htmlspecialchars($img) ?>" alt="Photo <?= $i+1 ?>" class="<?= $i===0?'active':'' ?>" data-i="<?= $i ?>">
-            <?php endforeach; ?>
-            <div class="gm-counter" id="gm-counter">1/<?= count($images) ?></div>
-            <?php if(count($images)>1): ?>
-            <div class="gm-dots">
+        <!-- ═══ MOBILE GALLERY + MAP ═══ -->
+        <div class="mob-gal-split">
+            <div class="gal-mobile" id="gal-mobile">
                 <?php foreach($images as $i=>$img): ?>
-                    <div class="gm-dot <?= $i===0?'active':'' ?>" data-i="<?= $i ?>"></div>
+                    <img src="<?= htmlspecialchars($img) ?>" alt="Photo <?= $i+1 ?>" class="<?= $i===0?'active':'' ?>" data-i="<?= $i ?>">
                 <?php endforeach; ?>
+                <div class="gm-counter" id="gm-counter">1/<?= count($images) ?></div>
+                <?php if(count($images)>1): ?>
+                <div class="gm-dots">
+                    <?php foreach($images as $i=>$img): ?>
+                        <div class="gm-dot <?= $i===0?'active':'' ?>" data-i="<?= $i ?>"></div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
+
+            <!-- Mobile-only map (shown below slider on small screens) -->
+            <div class="mob-map-wrap">
+                <div class="map-overlay-lab">
+                    <i class="fa-solid fa-map-location-dot" style="color:var(--primary);margin-right:3px;"></i> Location
+                </div>
+                <div id="detail-map-mobile" class="dp-map"></div>
+            </div>
         </div>
 
         <div class="dp-grid">
@@ -433,12 +485,6 @@ $featureIcons = [
                         <?php endif; ?>
                         <div class="sp-item"><span class="sp-lbl">Address</span><span class="sp-val"><?= htmlspecialchars($apt['address']) ?></span></div>
                     </div>
-                </div>
-
-                <!-- Map -->
-                <div class="dp-card">
-                    <h3><i class="fa-solid fa-map-pin"></i> Location</h3>
-                    <div id="detail-map" class="dp-map"></div>
                 </div>
 
                 <!-- Contact — mobile -->
@@ -568,11 +614,24 @@ $featureIcons = [
     <script src="terminal.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        /* ═══ MAP ═══ */
+        /* ═══ MAP — desktop (in hero) + mobile (below slider) ═══ */
         const lat=<?= (float)$apt['lat'] ?>, lng=<?= (float)$apt['lng'] ?>;
+        const popupHtml='<b><?= addslashes(htmlspecialchars($apt['title'])) ?></b><br><?= addslashes(htmlspecialchars($apt['address'])) ?>';
+        const tileUrl='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+        const tileOpts={attribution:'&copy; OpenStreetMap'};
+
+        /* Desktop hero map */
         const map=L.map('detail-map').setView([lat,lng],15);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
-        L.marker([lat,lng]).addTo(map).bindPopup('<b><?= addslashes(htmlspecialchars($apt['title'])) ?></b><br><?= addslashes(htmlspecialchars($apt['address'])) ?>').openPopup();
+        L.tileLayer(tileUrl,tileOpts).addTo(map);
+        L.marker([lat,lng]).addTo(map).bindPopup(popupHtml).openPopup();
+
+        /* Mobile map (below slider) */
+        const mobMapEl=document.getElementById('detail-map-mobile');
+        if(mobMapEl){
+            const mobMap=L.map('detail-map-mobile').setView([lat,lng],14);
+            L.tileLayer(tileUrl,tileOpts).addTo(mobMap);
+            L.marker([lat,lng]).addTo(mobMap).bindPopup(popupHtml);
+        }
 
         /* ═══ MOBILE GALLERY AUTO-SLIDER ═══ */
         const imgs=<?= json_encode($images) ?>;

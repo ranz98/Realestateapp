@@ -11,8 +11,8 @@ require_once 'auth_check.php';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="terminal.css">
+  <link rel="stylesheet" href="style.css?v=2.6">
+<link rel="stylesheet" href="terminal.css?v=2.6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -22,7 +22,7 @@ require_once 'auth_check.php';
 <?php include 'get-theme.php'; ?>
 </head>
 
-<body>
+<body class="page-listings">
     <header class="site-header">
         <nav class="navbar">
 
@@ -35,13 +35,17 @@ require_once 'auth_check.php';
                 </span>
             </a>
 
-            <!-- ── Search pill (Animated typewriter) ── -->
             <div class="t-nav-left" id="t-nav-pill" role="button" tabindex="0" aria-label="Search properties">
                 <span class="t-nav-pill-tw">
                     <span id="t-nav-tw-text"></span><span class="t-tw-cursor">|</span>
                 </span>
                 <i class="fa-solid fa-magnifying-glass t-nav-pill-icon"></i>
             </div>
+
+            <!-- ── Mobile Filter Trigger (Next to search) ── -->
+            <button class="t-nav-filter-btn" id="t-nav-filter-btn" aria-label="Open filters" title="Search & Filters">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
 
             <!-- ── Right: Desktop links + Mobile action buttons ── -->
             <div class="nav-links">
@@ -50,13 +54,16 @@ require_once 'auth_check.php';
                 <a href="index.php" class="active">Explore</a>
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <a href="dashboard.php">Dashboard</a>
-                    <?php if ($_SESSION['user_role'] === 'admin'): ?><a href="admin.php">Admin</a><?php endif; ?>
+                    <?php if ($_SESSION['user_role'] === 'admin'): ?><a href="admin.php">Admin</a><?php
+    endif; ?>
                     <a href="list-apartment.php" class="btn-primary">List Property</a>
                     <a href="logout.php">Logout</a>
-                <?php else: ?>
+                <?php
+else: ?>
                     <a href="login.php">Login</a>
                     <a href="register.php" class="btn-primary">Sign Up</a>
-                <?php endif; ?>
+                <?php
+endif; ?>
             </div>
         </nav>
 
@@ -113,14 +120,6 @@ require_once 'auth_check.php';
 
     <main class="main-container">
         <section class="listings-section" id="listings-section">
-            <div id="initial-mode-overlay" class="mode-overlay">
-                <div class="mode-overlay-content">
-                    <div class="mode-overlay-btns">
-                        <button class="btn-primary overlay-mode-btn" data-mode="Buy">Buy</button>
-                        <button class="btn-primary overlay-mode-btn" data-mode="Rent">Rent</button>
-                    </div>
-                </div>
-            </div>
             <div class="listings-scroll-container" id="listings-scroll-container">
                 <div class="listings-grid" id="listings-grid">
                     <p>Loading properties...</p>
@@ -131,48 +130,6 @@ require_once 'auth_check.php';
             <div id="map"></div>
         </section>
     </main>
-
-    <!-- ═══ Professional Footer ═══ -->
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-brand">
-                <a href="index.php" class="footer-logo">
-                    <i class="fa-solid fa-house-chimney-window"></i>
-                    <span>MyHomeMyLand</span>
-                </a>
-                <p class="footer-tagline">Sri Lanka's trusted property marketplace.<br>Find your dream home today.</p>
-                <div class="footer-social">
-                    <a href="#" title="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-                    <a href="#" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                    <a href="#" title="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
-                    <a href="#" title="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
-                </div>
-            </div>
-            <div class="footer-links-grid">
-                <div class="footer-col">
-                    <h4>Explore</h4>
-                    <a href="index.php">Buy Property</a>
-                    <a href="index.php">Rent Property</a>
-                    <a href="list-apartment.php">List Your Property</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Company</h4>
-                    <a href="#">About Usxx</a>
-                    <a href="#">Contact</a>
-                    <a href="#">Careers</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Legal</h4>
-                    <a href="#">Privacy Policy</a>
-                    <a href="#">Terms of Service</a>
-                    <a href="#">Cookie Policy</a>
-                </div>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; <?php echo date('Y'); ?> MyHomeMyLand &mdash; All rights reserved.</p>
-        </div>
-    </footer>
 
     <!-- Mobile View Toggle Pill -->
     <div class="mobile-view-toggle" id="mobile-view-toggle">
@@ -313,10 +270,7 @@ require_once 'auth_check.php';
         </div>
     </div><!-- /.t-search-overlay -->
 
-    <!-- ── Fixed floating filter button ── -->
-    <button class="t-fab-filters" id="t-fab-filters" aria-label="Open filters" title="Search & Filters">
-        <i class="fa-solid fa-sliders"></i>
-    </button>
+    
 
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>

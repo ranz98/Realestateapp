@@ -140,17 +140,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'list') {
             document.getElementById('mvt-list')?.classList.add('mvt-active');
             document.body.classList.remove('mobile-map-only');
+            /* Show mini map player after cards settle */
+            setTimeout(() => {
+                if (typeof miniMapDismissed !== 'undefined') miniMapDismissed = false;
+                if (typeof showMiniPlayer === 'function') showMiniPlayer();
+            }, 380);
         } else if (mode === 'split') {
             document.getElementById('mvt-split')?.classList.add('mvt-active');
             mainContainer?.classList.add('split-mode');
             document.body.classList.remove('mobile-map-only');
             if (map) setTimeout(() => map.invalidateSize(), 150);
+            if (typeof hideMiniPlayer === 'function') hideMiniPlayer(false);
         } else if (mode === 'map') {
             document.getElementById('mvt-map')?.classList.add('mvt-active');
             mapSection?.classList.add('mobile-map-active');
             listingsSection?.classList.add('mobile-hidden');
             document.body.classList.add('mobile-map-only');
             if (map) setTimeout(() => map.invalidateSize(), 150);
+            if (typeof hideMiniPlayer === 'function') hideMiniPlayer(false);
         }
         localStorage.setItem('mobileViewMode', mode);
     }
@@ -159,22 +166,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isMobile()) {
         applyMobileMode(localStorage.getItem('mobileViewMode') || 'map');
-        const initialOverlay = document.getElementById('initial-mode-overlay');
-        if (initialOverlay) {
-            initialOverlay.style.display = 'flex';
-            document.querySelectorAll('.overlay-mode-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    currentMode = e.target.dataset.mode;
-                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
-                    initialOverlay.style.display = 'none';
-                    fetchListings();
-                });
-            });
-        }
-    } else {
-        const ov = document.getElementById('initial-mode-overlay');
-        if (ov) ov.style.display = 'none';
     }
+
+    /* ── Mini Map Player (YouTube-style PiP) ─────────────────────── */
+    let miniMap = null;
+    let miniMarkersLayer = null;
+    let miniMapDismissed = false;
+    let miniMapData = [];
+
+    const miniPlayerEl  = document.getElementById('mini-map-player');
+    const mmpCloseBtn   = document.getElementById('mmp-close');
+    const mmpExpandBtn  = document.getElementById('mmp-expand');
+
+    function initMiniMap() {
+        if (miniMap || !document.getElementById('mini-map-canvas')) return;
+        miniMap = L.map('mini-map-canvas', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            touchZoom: false,
+            keyboard: false,
+            tap: false,
+        }).setView([7.8731, 80.7718], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(miniMap);
+        miniMarkersLayer = L.layerGroup().addTo(miniMap);
+        _syncMiniMarkers();
+    }
+
+    function _syncMiniMarkers() {
+        if (!miniMap || !miniMarkersLayer || !miniMapData.length) return;
+        miniMarkersLayer.clearLayers();
+        const latlngs = [];
+        miniMapData.forEach(prop => {
+            if (!prop.lat || !prop.lng) return;
+            L.circleMarker([prop.lat, prop.lng], {
+                radius: 5, fillColor: '#0ea5e9', color: '#fff',
+                weight: 1.5, opacity: 1, fillOpacity: 0.92
+            }).addTo(miniMarkersLayer);
+            latlngs.push([prop.lat, prop.lng]);
+        });
+        if (latlngs.length > 0) {
+            try { miniMap.fitBounds(latlngs, { padding: [18, 18], maxZoom: 11, animate: false }); } catch (e) {}
+        }
+    }
+
+    function showMiniPlayer() {
+        if (!miniPlayerEl || miniMapDismissed || !isMobile()) return;
+        miniPlayerEl.classList.remove('mmp-hiding');
+        miniPlayerEl.style.display = 'flex';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => miniPlayerEl.classList.add('mmp-visible'));
+        });
+        setTimeout(() => {
+            initMiniMap();
+            if (miniMap) { miniMap.invalidateSize(); _syncMiniMarkers(); }
+        }, 60);
+    }
+
+    function hideMiniPlayer(dismiss) {
+        if (!miniPlayerEl) return;
+        if (dismiss) miniMapDismissed = true;
+        miniPlayerEl.classList.remove('mmp-visible');
+        miniPlayerEl.classList.add('mmp-hiding');
+        setTimeout(() => {
+            miniPlayerEl.style.display = 'none';
+            miniPlayerEl.classList.remove('mmp-hiding');
+        }, 240);
+    }
+
+    if (mmpCloseBtn)  mmpCloseBtn.addEventListener('click', () => hideMiniPlayer(true));
+    if (mmpExpandBtn) mmpExpandBtn.addEventListener('click', () => { hideMiniPlayer(false); applyMobileMode('map'); });
+    /* ─────────────────────────────────────────────────────────────── */
 
     window.addEventListener('resize', () => {
         if (!isMobile()) {
@@ -280,6 +344,94 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Fetch & Render ---
     const grid = document.getElementById('listings-grid');
 
+    /* ── Card slider helpers (delegated) ── */
+    function _updateCardSlider(wrapper) {
+        const s = parseInt(wrapper.dataset.slide) || 0;
+        const w = wrapper.parentElement.offsetWidth;
+        wrapper.style.transform = 'translateX(' + (-s * w) + 'px)';
+        const card = wrapper.closest('.property-card');
+        if (card) {
+            card.querySelectorAll('.card-dot').forEach((d, i) => d.classList.toggle('active', i === s));
+        }
+    }
+
+    /* ── Delegated touch swipe on grid ── */
+    if (grid) {
+        let _sw = null, _startX = 0, _startY = 0, _curX = 0, _isH = null;
+        grid.addEventListener('touchstart', (e) => {
+            const wrapper = e.target.closest('.card-slider-wrapper');
+            if (!wrapper || !wrapper.dataset.count || parseInt(wrapper.dataset.count) <= 1) {
+                // IMPORTANT: clear state if starting touch on a non-swiper card
+                _sw = null; 
+                _isH = null;
+                return;
+            }
+            _sw = wrapper;
+            _startX = e.touches[0].clientX;
+            _startY = e.touches[0].clientY;
+            _curX = _startX;
+            _isH = null;
+            _sw.style.transition = 'none';
+        }, { passive: true });
+        grid.addEventListener('touchmove', (e) => {
+            if (!_sw) return;
+            const dx = e.touches[0].clientX - _startX;
+            const dy = e.touches[0].clientY - _startY;
+            if (_isH === null) _isH = Math.abs(dx) > Math.abs(dy);
+            if (!_isH) { _sw = null; return; }
+            e.preventDefault();
+            _curX = e.touches[0].clientX;
+            const s = parseInt(_sw.dataset.slide) || 0;
+            const w = _sw.parentElement.offsetWidth;
+            _sw.style.transform = 'translateX(' + (-s * w + dx) + 'px)';
+        }, { passive: false });
+        const endSwipe = () => {
+            if (!_sw) return;
+            _sw.style.transition = 'transform 0.3s cubic-bezier(0.25,1,0.5,1)';
+            const diff = _curX - _startX;
+            const count = parseInt(_sw.dataset.count) || 1;
+            let s = parseInt(_sw.dataset.slide) || 0;
+            if (_isH && Math.abs(diff) > 30) {
+                const card = _sw.closest('.property-card');
+                if (card) { card.dataset.swiped = '1'; setTimeout(() => delete card.dataset.swiped, 300); }
+                if (diff < 0) s = Math.min(s + 1, count - 1);
+                else s = Math.max(s - 1, 0);
+                _sw.dataset.slide = s;
+            }
+            _updateCardSlider(_sw);
+            _sw = null;
+            _isH = null;
+        };
+        grid.addEventListener('touchend', endSwipe);
+        grid.addEventListener('touchcancel', endSwipe);
+        
+        // Delegated click events for left/right arrows
+        grid.addEventListener('click', (e) => {
+            const nextBtn = e.target.closest('.card-slider-next');
+            const prevBtn = e.target.closest('.card-slider-prev');
+            if (nextBtn || prevBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const card = e.target.closest('.property-card');
+                const wrapper = card?.querySelector('.card-slider-wrapper');
+                if (wrapper) {
+                    const count = parseInt(wrapper.dataset.count) || 1;
+                    if (count > 1) {
+                        let s = parseInt(wrapper.dataset.slide) || 0;
+                        if (nextBtn) {
+                            s = (s + 1) % count;
+                        } else {
+                            s = (s - 1 + count) % count;
+                        }
+                        wrapper.dataset.slide = s;
+                        _updateCardSlider(wrapper);
+                    }
+                }
+            }
+        });
+    }
+
+    let _fetchRetried = false;
     const fetchListings = async () => {
         try {
             const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
@@ -293,8 +445,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const listing_mode = currentMode;
 
             const params = new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
-            const res = await fetch('api/get_apartments.php?' + params.toString());
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const res = await fetch('api/get_apartments.php?' + params.toString(), { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             const data = await res.json();
+            if (!Array.isArray(data)) throw new Error(data.error || 'Unexpected API response');
 
             if (grid) {
                 grid.innerHTML = '';
@@ -330,8 +488,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Price
                         const priceFormatted = 'Rs.\u00a0' + Number(prop.price).toLocaleString();
 
-                        // Stats row
+                        // Stats overlay (compact icon+number chips on the image)
                         const views = prop.view_count || 0;
+                        let statsOverlayHtml;
+                        if (prop.type === 'Land') {
+                            statsOverlayHtml =
+                                '<span><i class="fa-solid fa-ruler-combined"></i> ' + (prop.size_perches||'—') + ' P</span>' +
+                                '<span><i class="fa-solid fa-eye"></i> ' + views + '</span>';
+                        } else {
+                            statsOverlayHtml =
+                                '<span><i class="fa-solid fa-bed"></i> ' + (prop.bedrooms||'—') + '</span>' +
+                                '<span><i class="fa-solid fa-bath"></i> ' + (prop.baths||'—') + '</span>' +
+                                '<span><i class="fa-solid fa-eye"></i> ' + views + '</span>';
+                        }
+
+                        // Stats row (desktop — kept in property-info)
                         let statsHtml;
                         if (prop.type === 'Land') {
                             statsHtml = '<div class="pc-stat"><i class="fa-solid fa-ruler-combined"></i><span>' + (prop.size_perches||'—') + '</span><small>Perches</small></div><div class="pc-stat-sep"></div><div class="pc-stat"><i class="fa-solid fa-eye"></i><span>' + views + '</span><small>Views</small></div>';
@@ -347,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     '<span class="pc-type-badge"><i class="fa-solid ' + typeIconClass + '"></i>&nbsp;' + escapeHTML(prop.type) + '</span>' +
                                     '<span class="pc-mode-badge ' + modeClass + '">' + modeText + '</span>' +
                                 '</div>' +
+                                '<div class="pc-stats-overlay">' + statsOverlayHtml + '</div>' +
                                 '<div class="pc-bottom-row">' +
                                     '<div class="pc-price">' + priceFormatted + period + '</div>' +
                                     dotsBlock +
@@ -359,27 +531,25 @@ document.addEventListener('DOMContentLoaded', () => {
                                 '<div class="pc-stats-row">' + statsHtml + '</div>' +
                             '</div>';
 
-                        let preventCardClick = false;
                         if (imgs.length > 1) {
-                            let currSlide = 0;
                             const wrapper = card.querySelector('.card-slider-wrapper');
-                            const dots = card.querySelectorAll('.card-dot');
-                            const updateSlider = () => { wrapper.style.transform = 'translateX(-' + (currSlide * 100) + '%)'; dots.forEach(d => d.classList.remove('active')); if (dots[currSlide]) dots[currSlide].classList.add('active'); };
-                            card.querySelector('.card-slider-next').addEventListener('click', (e) => { e.stopPropagation(); currSlide = (currSlide + 1) % imgs.length; updateSlider(); });
-                            card.querySelector('.card-slider-prev').addEventListener('click', (e) => { e.stopPropagation(); currSlide = (currSlide - 1 + imgs.length) % imgs.length; updateSlider(); });
-                            let startX = 0, currentX = 0, isDragging = false;
-                            wrapper.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; wrapper.style.transition = 'none'; }, { passive: true });
-                            wrapper.addEventListener('touchmove', (e) => { if (!isDragging) return; currentX = e.touches[0].clientX; wrapper.style.transform = 'translateX(' + (-(currSlide * 100) + ((currentX - startX) / wrapper.offsetWidth * 100)) + '%)'; }, { passive: true });
-                            wrapper.addEventListener('touchend', () => { if (!isDragging) return; isDragging = false; wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25,1,0.5,1)'; const diff = currentX - startX; if (Math.abs(diff) > 30) { preventCardClick = true; setTimeout(() => preventCardClick = false, 100); if (diff < 0) currSlide = Math.min(currSlide + 1, imgs.length - 1); else currSlide = Math.max(currSlide - 1, 0); } updateSlider(); });
+                            wrapper.dataset.slide = '0';
+                            wrapper.dataset.count = imgs.length;
+                            // Arrow click listeners have been moved to delegated events on the grid
                         }
+                        card.dataset.propId = prop.id;
                         card.style.cursor = 'pointer';
-                        card.addEventListener('click', () => { if (!preventCardClick) window.location.href = 'apartment.php?id=' + prop.id; });
+                        card.addEventListener('click', () => { if (!card.dataset.swiped) window.location.href = 'apartment.php?id=' + prop.id; });
                         grid.appendChild(card);
                     });
                 }
             }
 
             // Map markers
+            /* Feed mini map with fresh data */
+            miniMapData = data;
+            if (miniMap) { miniMap.invalidateSize(); _syncMiniMarkers(); }
+
             if (mapElement && markersLayer) {
                 markersLayer.clearLayers();
                 data.forEach(prop => {
@@ -392,7 +562,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             console.error('Fetch error:', e);
-            if (grid) grid.innerHTML = '<p style="color:red;grid-column:span 2;">Failed to load properties.</p>';
+            if (!_fetchRetried) {
+                _fetchRetried = true;
+                if (grid) grid.innerHTML = '<p>Loading properties...</p>';
+                setTimeout(fetchListings, 1200);
+            } else {
+                _fetchRetried = false;
+                if (grid) grid.innerHTML = '<p style="color:red;grid-column:span 2;">Failed to load properties. Please check your connection.</p>';
+            }
         }
     };
 

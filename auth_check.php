@@ -18,4 +18,7 @@ if (isset($_SESSION['user_id'])) {
         $_SESSION['user_role'] = $validUser['role'];
     }
 }
+// Release session file lock so concurrent AJAX requests (e.g. fetchListings)
+// are not blocked waiting for this page's session lock to clear.
+session_write_close();
 ?>

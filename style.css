@@ -63,6 +63,14 @@ h1, h2, h3, h4, .logo {
 ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
 [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; }
 
+/* Mobile — thin blue scrollbar */
+@media (max-width: 992px) {
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #0ea5e9; border-radius: 99px; }
+    * { scrollbar-width: thin; scrollbar-color: #0ea5e9 transparent; }
+}
+
 /* Global Hide for Mobile-Only Components on Desktop */
 /* Desktop hides mobile-only components. Filters use .filter-bar-desktop instead. */
 .mode-overlay, .mobile-view-toggle, .mobile-only-flex {
@@ -773,7 +781,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     }
     .mvt-btn.mvt-active { background: var(--primary); color: white; }
 
-    .listings-section { padding-bottom: 5rem; }
+    .listings-section { padding-bottom: 5rem; max-width: 100% !important; width: 100% !important; }
     .listings-grid { grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
 
     /* --- Mobile Filters Modal --- */
@@ -1233,6 +1241,13 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     height: 100%;
     background-color: var(--bg-main);
     z-index: 1;
+}
+
+/* Strip Leaflet's default white square from divIcon wrapper */
+.custom-price-marker-wrapper {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 /* Permanent Price Markers */

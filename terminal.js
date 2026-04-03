@@ -328,9 +328,9 @@
 
         /* trigger may be absent on mobile (pill handles open instead) */
         trigger && trigger.addEventListener('click', openOverlay);
-        /* Floating filter button — always opens the overlay */
-        const fab = document.getElementById('t-fab-filters');
-        fab && fab.addEventListener('click', openOverlay);
+        /* Header filter button — always opens the overlay */
+        const navFilterBtn = document.getElementById('t-nav-filter-btn');
+        navFilterBtn && navFilterBtn.addEventListener('click', openOverlay);
         backdrop && backdrop.addEventListener('click', closeOverlay);
         closeBtn && closeBtn.addEventListener('click', closeOverlay);
         document.addEventListener('keydown', e => {
