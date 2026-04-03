@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Helper: read desktop or mobile filter value ---
+    /* --- FIX: Improved value retrieval to handle Desktop, Mobile, and Overlays correctly --- */
     function getVal(desktopId, mobileId, dfbId) {
         const desk = document.getElementById(desktopId);
         const mob = mobileId ? document.getElementById(mobileId) : null;
@@ -452,11 +453,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for mobile
+            /* --- FIX: Increased timeout to 20s for better reliability on mobile --- */
+            const timeoutId = setTimeout(() => controller.abort(), 20000); 
             const fetchUrl = 'api/get_apartments.php?' + params.toString();
             const res = await fetch(fetchUrl, { signal: controller.signal });
             clearTimeout(timeoutId);
 
+            /* --- FIX: Check res.ok to catch 403/500 errors before they cause JSON parser crashes --- */
             if (!res.ok) {
                 const errText = await res.text();
                 throw new Error(`Server error: ${res.status} ${res.statusText}. Response: ${errText.substring(0, 100)}`);
