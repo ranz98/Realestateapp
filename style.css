@@ -1562,10 +1562,11 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     top: 12px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
+    z-index: 1200;
     display: flex;
     gap: 6px;
     align-items: center;
+    pointer-events: all;
 }
 
 #draw-toolbar button {
