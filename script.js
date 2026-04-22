@@ -137,6 +137,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Draw-to-Filter ---
+    let drawnLayer = null;
+    let drawPolygon = null;
+    let drawingMode = false;
+    window._drawFilterPolygon = null; // turf polygon for filtering
+
+    const drawBtn = document.getElementById('draw-btn');
+    const drawClearBtn = document.getElementById('draw-clear-btn');
+
+    if (map && drawBtn && typeof L.Draw !== 'undefined' && typeof turf !== 'undefined') {
+        const drawnItems = new L.FeatureGroup().addTo(map);
+
+        const drawHandler = new L.Draw.Polygon(map, {
+            shapeOptions: {
+                color: '#0ea5e9',
+                fillColor: '#0ea5e9',
+                fillOpacity: 0.08,
+                weight: 2,
+                dashArray: '6 4',
+            },
+            showArea: false,
+            allowIntersection: false,
+        });
+
+        const startDraw = () => {
+            if (drawnLayer) { drawnItems.removeLayer(drawnLayer); drawnLayer = null; }
+            window._drawFilterPolygon = null;
+            drawHandler.enable();
+            drawingMode = true;
+            drawBtn.classList.add('draw-active');
+            drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
+            drawClearBtn.style.display = 'none';
+        };
+
+        const clearDraw = () => {
+            if (drawnLayer) { drawnItems.removeLayer(drawnLayer); drawnLayer = null; }
+            window._drawFilterPolygon = null;
+            drawHandler.disable();
+            drawingMode = false;
+            drawBtn.classList.remove('draw-active');
+            drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
+            drawClearBtn.style.display = 'none';
+            fetchListings(); // reset to normal filter
+        };
+
+        drawBtn.addEventListener('click', () => {
+            if (drawingMode) { clearDraw(); } else { startDraw(); }
+        });
+
+        drawClearBtn.addEventListener('click', clearDraw);
+
+        map.on(L.Draw.Event.CREATED, (e) => {
+            drawnLayer = e.layer;
+            drawnItems.addLayer(drawnLayer);
+            drawingMode = false;
+            drawHandler.disable();
+            drawBtn.classList.remove('draw-active');
+            drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
+            drawClearBtn.style.display = 'flex';
+
+            // Build turf polygon from drawn shape
+            const latlngs = drawnLayer.getLatLngs()[0];
+            const coords = latlngs.map(ll => [ll.lng, ll.lat]);
+            coords.push(coords[0]); // close ring
+            window._drawFilterPolygon = turf.polygon([coords]);
+
+            fetchListings();
+        });
+    }
+
     // --- Mobile View Toggle Components ---
     const mainContainer = document.querySelector('.main-container');
     const mapSection = document.getElementById('map-section');
@@ -464,12 +534,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset retry flag on success
             _fetchRetried = false;
 
+            // Apply draw-polygon filter if active
+            const poly = window._drawFilterPolygon;
+            const filteredData = poly && typeof turf !== 'undefined'
+                ? data.filter(p => {
+                    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
+                    if (isNaN(lat) || isNaN(lng)) return false;
+                    return turf.booleanPointInPolygon(turf.point([lng, lat]), poly);
+                })
+                : data;
+
             if (grid) {
                 grid.innerHTML = '';
-                if (data.length === 0) {
-                    grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">No properties match your search.</p>';
+                if (filteredData.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">' + (poly ? 'No properties found in drawn area.' : 'No properties match your search.') + '</p>';
                 } else {
-                    data.forEach(prop => {
+                    filteredData.forEach(prop => {
                         const card = document.createElement('div');
                         card.className = 'property-card';
 
@@ -561,11 +641,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Map markers
+            // Map markers — use filteredData so markers match cards
 
             if (mapElement && markersLayer) {
                 markersLayer.clearLayers();
-                data.forEach(prop => {
+                filteredData.forEach(prop => {
                     const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
                     const marker = L.marker([prop.lat, prop.lng], { icon: priceIcon }).addTo(markersLayer);
                     let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';

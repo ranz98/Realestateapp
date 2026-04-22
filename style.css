@@ -1556,6 +1556,59 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     z-index: 1;
 }
 
+/* Draw toolbar */
+#draw-toolbar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+#draw-toolbar button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 1rem;
+    border: none;
+    border-radius: 40px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+#draw-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-glass) !important;
+}
+
+#draw-btn:hover, #draw-btn.draw-active {
+    background: var(--primary) !important;
+    color: #fff !important;
+    border-color: var(--primary) !important;
+}
+
+#draw-clear-btn {
+    background: rgba(239,68,68,0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.3) !important;
+}
+
+#draw-clear-btn:hover {
+    background: #ef4444 !important;
+    color: #fff !important;
+}
+
 /* Strip Leaflet's default white square from divIcon wrapper */
 .custom-price-marker-wrapper {
     background: transparent !important;
