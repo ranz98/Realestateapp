@@ -124,6 +124,14 @@
         </div>
     </div>
 
+    <!-- Buy / Rent sticky pill — sits right below filter bar -->
+    <div class="bsp-wrap">
+        <div class="buy-sell-pill" id="buy-sell-pill">
+            <button class="bsp-btn bsp-active" id="bsp-buy" data-mode="Buy">Buy</button>
+            <button class="bsp-btn" id="bsp-sell" data-mode="Rent">Rent</button>
+        </div>
+    </div>
+
     <main class="main-container">
         <section class="listings-section" id="listings-section">
             <div class="listings-scroll-container" id="listings-scroll-container">
@@ -136,12 +144,6 @@
             <div id="map"></div>
         </section>
     </main>
-
-    <!-- Sticky Buy / Sell Pill -->
-    <div class="buy-sell-pill" id="buy-sell-pill">
-        <button class="bsp-btn bsp-active" id="bsp-buy" data-mode="Buy">Buy</button>
-        <button class="bsp-btn" id="bsp-sell" data-mode="Rent">Rent</button>
-    </div>
 
     <!-- Mobile View Toggle Pill -->
     <div class="mobile-view-toggle" id="mobile-view-toggle">

@@ -670,29 +670,35 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 /* ============================================
    MOBILE VIEW TOGGLE PILL (Hidden on desktop)
    ============================================ */
-/* ── Sticky Buy / Sell pill ─────────────────── */
+/* ── Buy / Rent pill wrapper — sits below filter bar ── */
+.bsp-wrap {
+    position: sticky;
+    top: calc(var(--t-header-h, 60px) + 52px);
+    z-index: 980;
+    display: flex;
+    justify-content: center;
+    padding: 0.45rem 0;
+    pointer-events: none;
+}
+
 .buy-sell-pill {
-    position: fixed;
-    bottom: 90px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 2400;
+    pointer-events: all;
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50px;
-    padding: 4px;
-    gap: 3px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 40px;
+    padding: 6px;
+    gap: 5px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 }
 
 .bsp-btn {
-    padding: 0.38rem 1.3rem;
+    display: flex;
+    align-items: center;
+    padding: 0.42rem 1.2rem;
     border: none;
-    border-radius: 50px;
+    border-radius: 40px;
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.82rem;
@@ -705,19 +711,13 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 
 .bsp-btn:hover {
     color: var(--primary);
+    background: rgba(14, 165, 233, 0.08);
 }
 
 .bsp-btn.bsp-active {
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     color: #fff;
-    box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
-}
-
-/* Desktop: push it up more so it clears content nicely */
-@media (min-width: 993px) {
-    .buy-sell-pill {
-        bottom: 28px;
-    }
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
 }
 
 .mobile-view-toggle {
