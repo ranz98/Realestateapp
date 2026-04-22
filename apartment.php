@@ -2603,7 +2603,7 @@ $featureIcons = [
                                 <strong id="dur-val-exp-peak"
                                     style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
                                 <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">peak
-                                    traffic <span style="font-size:0.6rem;opacity:0.75;"></span></span>
+                                    traffic - 8.30 arrival<span style="font-size:0.6rem;opacity:0.75;"></span></span>
                             </div>
                         </div>
                         <div id="dist-error-exp" style="display:none;color:#ef4444;font-size:0.78rem;"></div>
@@ -3195,8 +3195,8 @@ $featureIcons = [
                     const slOffsetMs = 330 * 60 * 1000;
                     const nowSL = new Date(now.getTime() + slOffsetMs);
                     const target = new Date(nowSL);
-                    target.setUTCHours(8, 30, 0, 0); // 08:30 SL = 03:00 UTC
-                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8:30am
+                    target.setUTCHours(8, 0, 0, 0); // 08:00 SL = 02:30 UTC
+                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8am
                     // Convert back to real UTC
                     return new Date(target.getTime() - slOffsetMs);
                 };
