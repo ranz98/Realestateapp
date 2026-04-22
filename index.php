@@ -137,6 +137,12 @@
         </section>
     </main>
 
+    <!-- Sticky Buy / Sell Pill -->
+    <div class="buy-sell-pill" id="buy-sell-pill">
+        <button class="bsp-btn bsp-active" id="bsp-buy" data-mode="Buy">Buy</button>
+        <button class="bsp-btn" id="bsp-sell" data-mode="Rent">Rent</button>
+    </div>
+
     <!-- Mobile View Toggle Pill -->
     <div class="mobile-view-toggle" id="mobile-view-toggle">
         <button class="mvt-btn" id="mvt-list" data-mode="list"><i
@@ -295,6 +301,30 @@
     <script src="script.js?v=<?php echo time(); ?>"></script>
     <script src="terminal.js?v=<?php echo time(); ?>"></script>
     <script>
+        /* ── Buy / Sell sticky pill ── */
+        document.addEventListener('DOMContentLoaded', () => {
+            const bspBtns = document.querySelectorAll('.bsp-btn');
+            bspBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Update pill active state
+                    bspBtns.forEach(b => b.classList.remove('bsp-active'));
+                    btn.classList.add('bsp-active');
+                    // Trigger the matching existing mode-btn so all filter logic runs
+                    const mode = btn.dataset.mode;
+                    const modeBtn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+                    if (modeBtn) modeBtn.click();
+                });
+            });
+
+            // Keep pill in sync when mode-btns are clicked elsewhere
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.dataset.mode;
+                    bspBtns.forEach(b => b.classList.toggle('bsp-active', b.dataset.mode === mode));
+                });
+            });
+        });
+
         /* ── Filter sync layer ── */
         document.addEventListener('DOMContentLoaded', () => {
             const minSel = document.getElementById('filter-min-price-select');

@@ -670,6 +670,56 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 /* ============================================
    MOBILE VIEW TOGGLE PILL (Hidden on desktop)
    ============================================ */
+/* ── Sticky Buy / Sell pill ─────────────────── */
+.buy-sell-pill {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2400;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    padding: 4px;
+    gap: 3px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.bsp-btn {
+    padding: 0.38rem 1.3rem;
+    border: none;
+    border-radius: 50px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bsp-btn:hover {
+    color: var(--primary);
+}
+
+.bsp-btn.bsp-active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
+}
+
+/* Desktop: push it up more so it clears content nicely */
+@media (min-width: 993px) {
+    .buy-sell-pill {
+        bottom: 28px;
+    }
+}
+
 .mobile-view-toggle {
     display: none;
     /* Hidden on desktop */
