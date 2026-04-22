@@ -197,16 +197,7 @@
                 <option value="1000000">Rs.1M+</option>
             </select>
 
-            <!-- Quick suggestion chips -->
-            <div class="t-so-chips">
-                <span class="t-so-chips-label">Quick Search:</span>
-                <button class="t-chip" data-q="Colombo"><i class="fa-solid fa-location-dot"></i> Colombo</button>
-                <button class="t-chip" data-q="Apartment"><i class="fa-solid fa-building"></i> Apartment</button>
-                <button class="t-chip" data-q="House"><i class="fa-solid fa-house"></i> House</button>
-                <button class="t-chip" data-q="Villa"><i class="fa-solid fa-house-chimney-window"></i> Villa</button>
-                <button class="t-chip" data-q="Galle"><i class="fa-solid fa-location-dot"></i> Galle</button>
-                <button class="t-chip" data-q="Kandy"><i class="fa-solid fa-location-dot"></i> Kandy</button>
-            </div>
+
 
             <!-- Filters grid -->
             <div class="t-so-filters">
