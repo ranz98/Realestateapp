@@ -2593,15 +2593,17 @@ $featureIcons = [
                                     style="font-size:0.78rem;color:#111;white-space:nowrap;"></strong>
                                 <strong id="dur-val-exp-transit"
                                     style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
-                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">by bus</span>
+                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">by
+                                    bus</span>
                                 <!-- Peak Traffic (8 AM Sri Lanka) -->
                                 <i class="fa-solid fa-traffic-light"
-                                    style="color:#f59e0b;font-size:0.78rem;justify-self:center;"></i>
+                                    style="color:#0ea5e9;font-size:0.78rem;justify-self:center;"></i>
                                 <strong id="dist-val-exp-peak"
                                     style="font-size:0.78rem;color:#111;white-space:nowrap;"></strong>
                                 <strong id="dur-val-exp-peak"
-                                    style="font-size:0.78rem;color:#f59e0b;white-space:nowrap;"></strong>
-                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">peak traffic <span style="font-size:0.6rem;opacity:0.75;">(8am SL)</span></span>
+                                    style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
+                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">peak
+                                    traffic <span style="font-size:0.6rem;opacity:0.75;"></span></span>
                             </div>
                         </div>
                         <div id="dist-error-exp" style="display:none;color:#ef4444;font-size:0.78rem;"></div>
@@ -3193,8 +3195,8 @@ $featureIcons = [
                     const slOffsetMs = 330 * 60 * 1000;
                     const nowSL = new Date(now.getTime() + slOffsetMs);
                     const target = new Date(nowSL);
-                    target.setUTCHours(8, 0, 0, 0); // 08:00 SL = 02:30 UTC
-                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8am
+                    target.setUTCHours(8, 30, 0, 0); // 08:30 SL = 03:00 UTC
+                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8:30am
                     // Convert back to real UTC
                     return new Date(target.getTime() - slOffsetMs);
                 };
