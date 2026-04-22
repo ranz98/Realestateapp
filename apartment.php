@@ -3154,6 +3154,17 @@ $featureIcons = [
                         document.body.style.overflow = '';
                     }, 300);
                 });
+
+                // Click on the blurred backdrop (outside the inner card) closes the lightbox
+                mapLb.addEventListener('click', e => {
+                    if (e.target === mapLb) {
+                        mapLb.style.opacity = '0';
+                        setTimeout(() => {
+                            mapLb.style.display = 'none';
+                            document.body.style.overflow = '';
+                        }, 300);
+                    }
+                });
             }
 
             /* Wire expanded map zoom buttons */
@@ -3324,10 +3335,17 @@ $featureIcons = [
                 };
                 distBtnExp.addEventListener('click', doCalcExp);
                 distInputExp.addEventListener('keydown', e => { if (e.key === 'Enter') doCalcExp(); });
+
+                // Dismiss result popup when clicking on the map area
+                const dismissResult = () => {
+                    document.getElementById('dist-result-exp').style.display = 'none';
+                    document.getElementById('dist-error-exp').style.display = 'none';
+                };
+                document.getElementById('expanded-map').addEventListener('click', dismissResult);
+
                 if (distClearExp) {
                     distClearExp.addEventListener('click', () => {
-                        document.getElementById('dist-result-exp').style.display = 'none';
-                        document.getElementById('dist-error-exp').style.display = 'none';
+                        dismissResult();
                         distInputExp.value = '';
                         delete (window._distPlaceCoords || {})['exp'];
                         if (expandedMapObj && routeStates['exp']) { routeStates['exp'].forEach(l => expandedMapObj.removeLayer(l)); delete routeStates['exp']; }
