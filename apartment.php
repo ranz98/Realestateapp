@@ -3323,6 +3323,8 @@ $featureIcons = [
                                 if (routeStates['exp']) routeStates['exp'].forEach(l => expandedMapObj.removeLayer(l));
                                 const routeLine = L.geoJSON(rd.routes[0].geometry, { style: { color: '#0ea5e9', weight: 5, opacity: 0.85 } }).addTo(expandedMapObj);
                                 routeStates['exp'] = [routeLine];
+                                // ← zoom map to show the full route
+                                expandedMapObj.fitBounds(routeLine.getBounds(), { padding: [40, 40], animate: true });
                             }
                         }
                     } catch (e) {
@@ -3336,16 +3338,10 @@ $featureIcons = [
                 distBtnExp.addEventListener('click', doCalcExp);
                 distInputExp.addEventListener('keydown', e => { if (e.key === 'Enter') doCalcExp(); });
 
-                // Dismiss result popup when clicking on the map area
-                const dismissResult = () => {
-                    document.getElementById('dist-result-exp').style.display = 'none';
-                    document.getElementById('dist-error-exp').style.display = 'none';
-                };
-                document.getElementById('expanded-map').addEventListener('click', dismissResult);
-
                 if (distClearExp) {
                     distClearExp.addEventListener('click', () => {
-                        dismissResult();
+                        document.getElementById('dist-result-exp').style.display = 'none';
+                        document.getElementById('dist-error-exp').style.display = 'none';
                         distInputExp.value = '';
                         delete (window._distPlaceCoords || {})['exp'];
                         if (expandedMapObj && routeStates['exp']) { routeStates['exp'].forEach(l => expandedMapObj.removeLayer(l)); delete routeStates['exp']; }
