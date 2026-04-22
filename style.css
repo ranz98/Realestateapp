@@ -670,55 +670,6 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 /* ============================================
    MOBILE VIEW TOGGLE PILL (Hidden on desktop)
    ============================================ */
-/* ── Buy / Rent pill wrapper — sits below filter bar ── */
-.bsp-wrap {
-    position: sticky;
-    top: calc(var(--t-header-h, 60px) + 52px);
-    z-index: 980;
-    display: flex;
-    justify-content: center;
-    padding: 0.45rem 0;
-    pointer-events: none;
-}
-
-.buy-sell-pill {
-    pointer-events: all;
-    display: flex;
-    align-items: center;
-    background: var(--bg-card);
-    border: 1px solid var(--border-glass);
-    border-radius: 40px;
-    padding: 6px;
-    gap: 5px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-.bsp-btn {
-    display: flex;
-    align-items: center;
-    padding: 0.42rem 1.2rem;
-    border: none;
-    border-radius: 40px;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    font-weight: 600;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.bsp-btn:hover {
-    color: var(--primary);
-    background: rgba(14, 165, 233, 0.08);
-}
-
-.bsp-btn.bsp-active {
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
-}
 
 .mobile-view-toggle {
     display: none;
