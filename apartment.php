@@ -2593,8 +2593,15 @@ $featureIcons = [
                                     style="font-size:0.78rem;color:#111;white-space:nowrap;"></strong>
                                 <strong id="dur-val-exp-transit"
                                     style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
-                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">by
-                                    bus</span>
+                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">by bus</span>
+                                <!-- Peak Traffic (8 AM Sri Lanka) -->
+                                <i class="fa-solid fa-traffic-light"
+                                    style="color:#f59e0b;font-size:0.78rem;justify-self:center;"></i>
+                                <strong id="dist-val-exp-peak"
+                                    style="font-size:0.78rem;color:#111;white-space:nowrap;"></strong>
+                                <strong id="dur-val-exp-peak"
+                                    style="font-size:0.78rem;color:#f59e0b;white-space:nowrap;"></strong>
+                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">peak traffic <span style="font-size:0.6rem;opacity:0.75;">(8am SL)</span></span>
                             </div>
                         </div>
                         <div id="dist-error-exp" style="display:none;color:#ef4444;font-size:0.78rem;"></div>
@@ -3179,6 +3186,19 @@ $featureIcons = [
                     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 };
 
+                // Returns next 8:00 AM Sri Lanka time (UTC+5:30) as a JS Date (always in the future)
+                const next8amSL = () => {
+                    const now = new Date();
+                    // Sri Lanka offset: UTC+5:30 = 330 minutes
+                    const slOffsetMs = 330 * 60 * 1000;
+                    const nowSL = new Date(now.getTime() + slOffsetMs);
+                    const target = new Date(nowSL);
+                    target.setUTCHours(8, 0, 0, 0); // 08:00 SL = 02:30 UTC
+                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8am
+                    // Convert back to real UTC
+                    return new Date(target.getTime() - slOffsetMs);
+                };
+
                 // Helper: call Google Distance Matrix for one travel mode, returns {dist, dur} or null
                 const gmDist = (origin, dest, mode) => new Promise(resolve => {
                     const svc = new google.maps.DistanceMatrixService();
@@ -3192,6 +3212,28 @@ $featureIcons = [
                         const el = res.rows[0]?.elements[0];
                         if (!el || el.status !== 'OK') return resolve(null);
                         resolve({ dist: el.distance.value, dur: el.duration.value, distTxt: el.distance.text, durTxt: el.duration.text });
+                    });
+                });
+
+                // Peak traffic: driving at next 8 AM Sri Lanka time
+                const gmDistPeak = (origin, dest) => new Promise(resolve => {
+                    const svc = new google.maps.DistanceMatrixService();
+                    svc.getDistanceMatrix({
+                        origins: [origin],
+                        destinations: [dest],
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        unitSystem: google.maps.UnitSystem.METRIC,
+                        drivingOptions: {
+                            departureTime: next8amSL(),
+                            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+                        },
+                    }, (res, status) => {
+                        if (status !== 'OK') return resolve(null);
+                        const el = res.rows[0]?.elements[0];
+                        if (!el || el.status !== 'OK') return resolve(null);
+                        // duration_in_traffic gives traffic-aware time
+                        const dur = el.duration_in_traffic || el.duration;
+                        resolve({ dist: el.distance.value, dur: dur.value, distTxt: el.distance.text, durTxt: dur.text });
                     });
                 });
 
@@ -3219,11 +3261,12 @@ $featureIcons = [
                         if (straightKm > 100) throw new Error('Distance too far — location is over 100 km away.');
 
                         const dest = { lat, lng };
-                        // Fire all 3 modes in parallel via Google
-                        const [drive, walk, transit] = await Promise.all([
+                        // Fire all 4 modes in parallel via Google
+                        const [drive, walk, transit, peak] = await Promise.all([
                             gmDist(origin, dest, 'DRIVING'),
                             gmDist(origin, dest, 'WALKING'),
                             gmDist(origin, dest, 'TRANSIT'),
+                            gmDistPeak(origin, dest),
                         ]);
 
                         if (!drive && !walk && !transit) throw new Error('Location not found or no route available.');
@@ -3248,6 +3291,14 @@ $featureIcons = [
                         } else {
                             document.getElementById('dist-val-exp-transit').textContent = drive ? drive.distTxt : '—';
                             document.getElementById('dur-val-exp-transit').textContent = 'N/A';
+                        }
+                        // Peak traffic at 8 AM Sri Lanka
+                        if (peak) {
+                            document.getElementById('dist-val-exp-peak').textContent = peak.distTxt;
+                            document.getElementById('dur-val-exp-peak').textContent = fmtSec(peak.dur);
+                        } else {
+                            document.getElementById('dist-val-exp-peak').textContent = '—';
+                            document.getElementById('dur-val-exp-peak').textContent = 'N/A';
                         }
 
                         document.getElementById('dist-result-exp').style.display = 'block';
