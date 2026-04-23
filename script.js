@@ -182,8 +182,32 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchListings(); // reset to normal filter
         };
 
+        // One-time onboarding overlay
+        const onboard = document.getElementById('draw-onboard');
+        const onboardGot = document.getElementById('draw-onboard-got');
+        const onboardClose = document.getElementById('draw-onboard-close');
+        const ONBOARD_KEY = 'drawOnboardSeen';
+        const hideOnboard = (startAfter) => {
+            if (!onboard) return;
+            onboard.classList.remove('show');
+            try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) {}
+            if (startAfter) startDraw();
+        };
+        if (onboardGot) onboardGot.addEventListener('click', () => hideOnboard(true));
+        if (onboardClose) onboardClose.addEventListener('click', () => hideOnboard(false));
+        if (onboard) onboard.addEventListener('click', (e) => {
+            if (e.target === onboard) hideOnboard(false);
+        });
+
         drawBtn.addEventListener('click', () => {
-            if (drawingMode) { clearDraw(); } else { startDraw(); }
+            if (drawingMode) { clearDraw(); return; }
+            let seen = false;
+            try { seen = localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) {}
+            if (!seen && onboard) {
+                onboard.classList.add('show');
+            } else {
+                startDraw();
+            }
         });
 
         drawClearBtn.addEventListener('click', clearDraw);

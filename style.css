@@ -1610,6 +1610,169 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     color: #fff !important;
 }
 
+/* ═══ Draw Onboarding Overlay ═══ */
+#draw-onboard {
+    position: absolute;
+    inset: 0;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 15, 25, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: drawOnboardFade 0.25s ease;
+}
+#draw-onboard.show { display: flex; }
+
+@keyframes drawOnboardFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.draw-onboard-card {
+    position: relative;
+    width: min(92%, 400px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 18px;
+    padding: 1.5rem 1.4rem 1.3rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    animation: drawOnboardPop 0.3s cubic-bezier(.2,1.2,.4,1);
+}
+
+@keyframes drawOnboardPop {
+    from { transform: translateY(12px) scale(0.96); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.draw-onboard-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 50%;
+}
+.draw-onboard-close:hover { background: var(--bg-main); color: var(--text-primary); }
+
+.draw-onboard-card h3 {
+    margin: 0 0 0.3rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+.draw-onboard-sub {
+    margin: 0 0 0.9rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.draw-onboard-demo {
+    background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(14,165,233,0.02));
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+.draw-onboard-demo svg { width: 100%; height: auto; display: block; }
+
+.do-dots circle { fill: var(--text-secondary); opacity: 0.5; }
+.do-dots circle:nth-child(1),
+.do-dots circle:nth-child(2),
+.do-dots circle:nth-child(3),
+.do-dots circle:nth-child(5),
+.do-dots circle:nth-child(6) {
+    animation: doHighlight 4s ease-in-out infinite;
+    animation-delay: 2.8s;
+}
+@keyframes doHighlight {
+    0%, 50% { fill: var(--text-secondary); opacity: 0.5; r: 4; }
+    60%, 100% { fill: #0ea5e9; opacity: 1; }
+}
+
+.do-poly {
+    fill: rgba(14,165,233,0.12);
+    stroke: #0ea5e9;
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    stroke-dashoffset: 600;
+    animation: doDraw 4s ease-in-out infinite;
+}
+@keyframes doDraw {
+    0% { stroke-dashoffset: 600; fill-opacity: 0; }
+    50% { stroke-dashoffset: 0; fill-opacity: 0; }
+    60%, 100% { stroke-dashoffset: 0; fill-opacity: 1; }
+}
+
+.do-cursor-dot {
+    fill: #fff;
+    stroke: #0ea5e9;
+    stroke-width: 2;
+    animation: doCursor 4s ease-in-out infinite;
+}
+@keyframes doCursor {
+    0%   { transform: translate(70px, 55px); }
+    20%  { transform: translate(155px, 45px); }
+    35%  { transform: translate(190px, 100px); }
+    50%  { transform: translate(110px, 115px); }
+    60%  { transform: translate(70px, 55px); }
+    100% { transform: translate(70px, 55px); }
+}
+
+.draw-onboard-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.draw-onboard-steps li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+.draw-onboard-steps li span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(14,165,233,0.15);
+    color: #0ea5e9;
+    font-weight: 700;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+.draw-onboard-steps li b { color: #0ea5e9; font-weight: 600; }
+
+.draw-onboard-got {
+    width: 100%;
+    padding: 0.7rem;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+.draw-onboard-got:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
 /* Strip Leaflet's default white square from divIcon wrapper */
 .custom-price-marker-wrapper {
     background: transparent !important;

@@ -2903,6 +2903,14 @@ $featureIcons = [
             function closeDrw() { drwBg.classList.remove('on'); drw.classList.remove('on'); document.body.style.overflow = ''; }
             if (drwBg) drwBg.addEventListener('click', closeDrw);
 
+            // Trigger the drawer when the mobile 'Offer' button is clicked
+            const mobOfferBtn = document.getElementById('mob-open');
+            if (mobOfferBtn) {
+                mobOfferBtn.addEventListener('click', (e) => {
+                    // If you want the drawer to open instead of an instant submit:
+                    openDrw();
+                });
+            }
             /* ═══ LOGIN PROMPT POPUP ═══ */
             const _isLoggedIn = <?= $isLoggedIn ? 'true' : 'false' ?>;
             const _loginRedirect = 'login.php?redirect=' + encodeURIComponent(window.location.href);
