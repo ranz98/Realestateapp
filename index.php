@@ -152,36 +152,37 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                     <h3>Draw your search area</h3>
-                    <p class="draw-onboard-sub">Click points on the map to outline any shape. Close the loop to filter properties inside it.</p>
+                    <p class="draw-onboard-sub">Click points on the map to outline any shape. Close the loop to filter
+                        properties inside it.</p>
 
                     <div class="draw-onboard-demo">
                         <svg viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg">
                             <!-- fake map dots (properties) -->
                             <g class="do-dots">
-                                <circle cx="55" cy="40" r="4"/>
-                                <circle cx="95" cy="60" r="4"/>
-                                <circle cx="140" cy="50" r="4"/>
-                                <circle cx="170" cy="85" r="4"/>
-                                <circle cx="120" cy="95" r="4"/>
-                                <circle cx="75" cy="105" r="4"/>
-                                <circle cx="200" cy="45" r="4"/>
-                                <circle cx="210" cy="115" r="4"/>
-                                <circle cx="40" cy="80" r="4"/>
+                                <circle cx="55" cy="40" r="4" />
+                                <circle cx="95" cy="60" r="4" />
+                                <circle cx="140" cy="50" r="4" />
+                                <circle cx="170" cy="85" r="4" />
+                                <circle cx="120" cy="95" r="4" />
+                                <circle cx="75" cy="105" r="4" />
+                                <circle cx="200" cy="45" r="4" />
+                                <circle cx="210" cy="115" r="4" />
+                                <circle cx="40" cy="80" r="4" />
                             </g>
                             <!-- drawn polygon -->
                             <polygon class="do-poly" points="70,55 155,45 190,100 110,115 60,95" />
                             <!-- animated cursor -->
                             <g class="do-cursor">
-                                <circle r="6" class="do-cursor-dot"/>
+                                <circle r="6" class="do-cursor-dot" />
                                 <i></i>
                             </g>
                         </svg>
                     </div>
 
                     <ol class="draw-onboard-steps">
-                        <li><span>1</span> Click <b>Draw Area</b></li>
-                        <li><span>2</span> Click points around your area</li>
-                        <li><span>3</span> Click the first point to close</li>
+
+                        <li><span>1</span> Click points around your area</li>
+                        <li><span>2</span> Click the first point to close</li>
                     </ol>
 
                     <button class="draw-onboard-got" id="draw-onboard-got">Got it — let's draw</button>

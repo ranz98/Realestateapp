@@ -923,22 +923,48 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         display: none !important;
     }
 
+    /* ───────── Split view: map stays fixed, listings slide up as overlay sheet ─────────
+       The map-section is pinned to fill the container, the listings-section
+       floats over the bottom half and animates in. The map never resizes,
+       so no visual "push up" when the sheet appears. */
     .main-container.split-mode {
-        flex-direction: column;
+        position: relative;
     }
 
     .main-container.split-mode .map-section {
         display: block !important;
-        order: -1;
-        height: 40vh !important;
-        flex: none;
-        border-bottom: 2px solid var(--border-glass);
+        position: absolute !important;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        flex: none !important;
+        order: 0 !important;
+        border-bottom: none;
     }
 
     .main-container.split-mode .listings-section {
         display: block !important;
-        flex: 1;
+        position: absolute !important;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100% !important;
+        height: 60vh;
+        flex: none !important;
+        z-index: 20;
+        background: var(--bg-main);
+        border-top: 2px solid var(--primary);
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
+    }
+
+    @keyframes split-sheet-slide-up {
+        from { transform: translateY(100%); }
+        to   { transform: translateY(0); }
     }
 
     body.mobile-map-only .site-footer {
@@ -1683,7 +1709,14 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     padding: 0.6rem;
     margin-bottom: 0.9rem;
 }
-.draw-onboard-demo svg { width: 100%; height: auto; display: block; }
+.draw-onboard-demo svg,
+.draw-onboard-demo img,
+.draw-onboard-demo video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
 
 .do-dots circle { fill: var(--text-secondary); opacity: 0.5; }
 .do-dots circle:nth-child(1),

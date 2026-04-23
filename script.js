@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 flyInCompleted = true; flyInRunning = false;
                 return;
             }
-            map.flyTo([6.90, 79.96], 10, { duration: 1.1, easeLinearity: 0.25 });
+            map.flyTo([6.90, 79.96], 10, { duration: 1.8, easeLinearity: 0.15 });
             map.once('moveend', () => {
                 setTimeout(() => {
                     brandOverlay.classList.add('brand-exit');
@@ -252,6 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
         listingsSection?.classList.remove('mobile-hidden');
         mvtButtons.forEach(b => b.classList.remove('mvt-active'));
 
+        // Save current center before layout changes (used only after fly-in is done)
+        const savedCenter = map ? map.getCenter() : null;
+        const savedZoom   = map ? map.getZoom()   : null;
+
         if (mode === 'list') {
             document.getElementById('mvt-list')?.classList.add('mvt-active');
             document.body.classList.remove('mobile-map-only');
@@ -259,13 +263,26 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('mvt-split')?.classList.add('mvt-active');
             mainContainer?.classList.add('split-mode');
             document.body.classList.remove('mobile-map-only');
-            if (map) setTimeout(() => map.invalidateSize(), 150);
+            if (map) {
+                map.invalidateSize({ animate: false });
+                setTimeout(() => {
+                    map.invalidateSize({ animate: false });
+                    // Only re-center after the fly-in animation has already completed
+                    if (flyInCompleted && savedCenter) map.setView(savedCenter, savedZoom, { animate: false });
+                }, 320);
+            }
         } else if (mode === 'map') {
             document.getElementById('mvt-map')?.classList.add('mvt-active');
             mapSection?.classList.add('mobile-map-active');
             listingsSection?.classList.add('mobile-hidden');
             document.body.classList.add('mobile-map-only');
-            if (map) setTimeout(() => map.invalidateSize(), 150);
+            if (map) {
+                map.invalidateSize({ animate: false });
+                setTimeout(() => {
+                    map.invalidateSize({ animate: false });
+                    if (flyInCompleted && savedCenter) map.setView(savedCenter, savedZoom, { animate: false });
+                }, 320);
+            }
         }
         localStorage.setItem('mobileViewMode', mode);
     }
