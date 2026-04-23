@@ -58,13 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        // Start WAY up — near space view, then dives down to Sri Lanka.
+        // Start MAXED OUT — full world view centered on Sri Lanka, then dives down.
         map = L.map('map', {
-            center: [7.87, 80.77], zoom: 3, minZoom: 2,
+            center: [7.87, 80.77], zoom: 1, minZoom: 1,
             attributionControl: false, zoomControl: true, scrollWheelZoom: true,
-            zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true
+            zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true,
+            worldCopyJump: false
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 1, noWrap: true }).addTo(map);
         markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
@@ -98,25 +99,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // Generous bounds around Sri Lanka so the surrounding Indian Ocean
             // (and a sliver of southern India) stays visible when zooming out.
             // Soft viscosity makes the edge elastic instead of hard-snapping back.
-            const SL_BOUNDS = L.latLngBounds(L.latLng(-1.5, 76.5), L.latLng(13.5, 85.0));
-            map.options.maxBoundsViscosity = 0.5;
+            // Much wider bounds — full Indian Ocean region, southern India, Maldives,
+            // and well out to sea so zoom-out feels free instead of snapping back.
+            const SL_BOUNDS = L.latLngBounds(L.latLng(-8.0, 70.0), L.latLng(22.0, 92.0));
+            map.options.maxBoundsViscosity = 0.3;
 
             if (skipAnimation) {
                 brandOverlay.remove();
                 map.setView([6.90, 79.96], 12, { animate: false });
                 map.setMaxBounds(SL_BOUNDS);
-                map.options.minZoom = 6;
+                map.options.minZoom = 4;
                 flyInCompleted = true; flyInRunning = false;
                 return;
             }
-            map.flyTo([6.90, 79.96], 10, { duration: 1.8, easeLinearity: 0.15 });
+            map.flyTo([6.90, 79.96], 10, { duration: 2.6, easeLinearity: 0.18 });
             map.once('moveend', () => {
                 setTimeout(() => {
                     brandOverlay.classList.add('brand-exit');
                     setTimeout(() => { brandOverlay.remove(); }, 1300);
 
                     map.setMaxBounds(SL_BOUNDS);
-                    map.options.minZoom = 6;
+                    map.options.minZoom = 4;
                     flyInCompleted = true; flyInRunning = false;
 
                     // AUTO-SPLIT AFTER FLY-IN (only on mobile)
