@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mapElement && typeof L !== 'undefined') {
         // Start MAXED OUT — full world view centered on Sri Lanka, then dives down.
         map = L.map('map', {
-            center: [7.87, 80.77], zoom: 1, minZoom: 1,
+            center: [7.87, 95.0], zoom: 1, minZoom: 1,
             attributionControl: false, zoomControl: true, scrollWheelZoom: true,
             zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true,
             worldCopyJump: false
