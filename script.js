@@ -58,13 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        // Start with all of Sri Lanka centered in view (India peeks at top), then flies in.
+        // Start WAY up — near space view, then dives down to Sri Lanka.
         map = L.map('map', {
-            center: [7.87, 80.77], zoom: 6, minZoom: 5,
+            center: [7.87, 80.77], zoom: 3, minZoom: 2,
             attributionControl: false, zoomControl: true, scrollWheelZoom: true,
             zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 5 }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
         markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
