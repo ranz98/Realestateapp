@@ -58,13 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        // Start framed on Sri Lanka (no world/Africa/India flash), then fly in closer.
+        // Start higher up — shows Sri Lanka with southern India visible, then flies in.
         map = L.map('map', {
-            center: [7.8, 80.7], zoom: 7, minZoom: 6,
+            center: [9.5, 80.5], zoom: 6, minZoom: 5,
             attributionControl: false, zoomControl: true, scrollWheelZoom: true,
             zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 6 }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 5 }).addTo(map);
         markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Generous bounds around Sri Lanka so the surrounding Indian Ocean
             // (and a sliver of southern India) stays visible when zooming out.
             // Soft viscosity makes the edge elastic instead of hard-snapping back.
-            const SL_BOUNDS = L.latLngBounds(L.latLng(2.5, 76.5), L.latLng(13.5, 85.0));
+            const SL_BOUNDS = L.latLngBounds(L.latLng(-1.5, 76.5), L.latLng(13.5, 85.0));
             map.options.maxBoundsViscosity = 0.5;
 
             if (skipAnimation) {
