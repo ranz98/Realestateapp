@@ -58,13 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        // Start way higher up — full South Asian region view, then flies in.
+        // Start with all of Sri Lanka centered in view (India peeks at top), then flies in.
         map = L.map('map', {
-            center: [11, 80], zoom: 5, minZoom: 4,
+            center: [7.87, 80.77], zoom: 6, minZoom: 5,
             attributionControl: false, zoomControl: true, scrollWheelZoom: true,
             zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 4 }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 5 }).addTo(map);
         markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
