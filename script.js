@@ -58,8 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        map = L.map('map', { center: [20, 0], zoom: 2, minZoom: 2, attributionControl: false, zoomControl: true, scrollWheelZoom: true });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
+        // Start framed on Sri Lanka (no world/Africa/India flash), then fly in closer.
+        map = L.map('map', {
+            center: [7.8, 80.7], zoom: 7, minZoom: 6,
+            attributionControl: false, zoomControl: true, scrollWheelZoom: true,
+            zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 6 }).addTo(map);
         markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
