@@ -141,7 +141,7 @@
                     <i class="fa-solid fa-draw-polygon"></i> Draw Area
                 </button>
                 <button id="draw-close-btn" title="Close and finish shape" style="display:none;">
-                    <i class="fa-solid fa-check"></i> Close Shape
+                    <i class="fa-solid fa-check"></i> Complete Shape
                 </button>
                 <button id="draw-clear-btn" title="Clear drawn area" style="display:none;">
                     <i class="fa-solid fa-xmark"></i> Clear
