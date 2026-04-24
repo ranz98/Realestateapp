@@ -518,28 +518,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const bEnd = (i + 1) * bucketSize;
             const inRange = bEnd >= selMin && bStart <= selMax;
             ctx.fillStyle = inRange ? activeColor : inactiveColor;
-            // G2 (squircle) top corners — continuous-curvature cubic instead of a circular arc
-            const r = Math.min(3.5, barW / 2, h / 2);
-            ctx.beginPath();
-            if (h > r * 2 && r > 0.5) {
-                const k = 0.45; // G2 handle ratio (smaller = sharper, larger = softer curvature transition)
-                // left edge up to top-left corner start
-                ctx.moveTo(x, H);
-                ctx.lineTo(x, y + r);
-                // top-left G2 corner: (x, y+r) -> (x+r, y)
-                ctx.bezierCurveTo(x, y + r * k, x + r * k, y, x + r, y);
-                // top edge
-                ctx.lineTo(x + barW - r, y);
-                // top-right G2 corner: (x+barW-r, y) -> (x+barW, y+r)
-                ctx.bezierCurveTo(x + barW - r * k, y, x + barW, y + r * k, x + barW, y + r);
-                // right edge + bottom
-                ctx.lineTo(x + barW, H);
-                ctx.lineTo(x, H);
-            } else {
-                ctx.rect(x, y, barW, h);
-            }
-            ctx.closePath();
-            ctx.fill();
+            // Flat-top rectangles — no rounded corners
+            ctx.fillRect(x, y, barW, h);
         }
     }
 
