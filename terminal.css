@@ -1918,7 +1918,7 @@ html {
 }
 
 .t-so-price-group .noUi-handle {
-    width: 18px !important;
+    width: 1px !important;
     height: 18px !important;
     border-radius: 50% !important;
     border: 3px solid #fff !important;
