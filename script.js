@@ -442,6 +442,116 @@ document.addEventListener('DOMContentLoaded', () => {
         priceSlider.noUiSlider.on('change', () => fetchListings());
     }
 
+    // --- Price Frequency Histogram (Airbnb-style) ---
+    const priceHistogramCanvas = document.getElementById('price-histogram');
+    const HIST_BUCKETS = 44;
+    let _histogramPrices = [];
+
+    async function fetchPriceHistogram() {
+        if (!priceHistogramCanvas) return;
+        try {
+            const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
+            const type = getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type');
+            const location = getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location');
+            const beds = getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds');
+            const baths = getVal('filter-baths', 'filter-baths-mobile');
+            const listing_mode = currentMode;
+            // NOTE: deliberately no min_price / max_price — histogram shows full distribution.
+            const params = new URLSearchParams({ search, type, location, beds, baths, listing_mode });
+            const res = await fetch('api/get_apartments.php?' + params.toString());
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!Array.isArray(data)) return;
+            _histogramPrices = data.map(p => Number(p.price)).filter(n => n > 0 && isFinite(n));
+            drawPriceHistogram();
+        } catch (e) { /* silent */ }
+    }
+
+    function drawPriceHistogram() {
+        if (!priceHistogramCanvas) return;
+        const currentMax = currentMode === 'Buy' ? BUY_MAX : RENT_MAX;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = priceHistogramCanvas.getBoundingClientRect();
+        const W = rect.width, H = rect.height;
+        if (W <= 0 || H <= 0) return;
+        priceHistogramCanvas.width = Math.round(W * dpr);
+        priceHistogramCanvas.height = Math.round(H * dpr);
+        const ctx = priceHistogramCanvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+
+        if (_histogramPrices.length === 0) return;
+
+        const buckets = new Array(HIST_BUCKETS).fill(0);
+        const bucketSize = currentMax / HIST_BUCKETS;
+        _histogramPrices.forEach(p => {
+            let b = Math.floor(p / bucketSize);
+            if (b >= HIST_BUCKETS) b = HIST_BUCKETS - 1;
+            if (b < 0) b = 0;
+            buckets[b]++;
+        });
+        const maxCount = Math.max.apply(null, buckets);
+        if (maxCount === 0) return;
+
+        // Current selected range (so bars outside go grey)
+        let selMin = 0, selMax = currentMax;
+        if (priceSlider && priceSlider.noUiSlider) {
+            const vals = priceSlider.noUiSlider.get();
+            selMin = Number(vals[0]);
+            selMax = Number(vals[1]);
+        }
+
+        const barGap = 2;
+        const barW = Math.max(1, (W - (HIST_BUCKETS - 1) * barGap) / HIST_BUCKETS);
+        const cssPrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+        const activeColor = cssPrimary || '#e91e63';
+        const inactiveColor = 'rgba(120,120,130,0.28)';
+
+        for (let i = 0; i < HIST_BUCKETS; i++) {
+            const count = buckets[i];
+            // Soft power scaling so no single tall bar dominates
+            const norm = Math.pow(count, 0.7) / Math.pow(maxCount, 0.7);
+            const h = count > 0 ? Math.max(2, norm * (H - 4)) : 0;
+            const x = i * (barW + barGap);
+            const y = H - h;
+            const bStart = i * bucketSize;
+            const bEnd = (i + 1) * bucketSize;
+            const inRange = bEnd >= selMin && bStart <= selMax;
+            ctx.fillStyle = inRange ? activeColor : inactiveColor;
+            const r = Math.min(2, barW / 2);
+            ctx.beginPath();
+            if (h > r * 2) {
+                ctx.moveTo(x, y + r);
+                ctx.arcTo(x, y, x + r, y, r);
+                ctx.lineTo(x + barW - r, y);
+                ctx.arcTo(x + barW, y, x + barW, y + r, r);
+                ctx.lineTo(x + barW, H);
+                ctx.lineTo(x, H);
+            } else {
+                ctx.rect(x, y, barW, h);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Re-tint bars live while the slider moves
+    if (priceSlider && priceSlider.noUiSlider) {
+        priceSlider.noUiSlider.on('update', drawPriceHistogram);
+    }
+    // Redraw on resize / when the filter modal opens (canvas may have had 0 width before)
+    window.addEventListener('resize', drawPriceHistogram);
+    const filtersModalEl = document.getElementById('filters-modal');
+    if (filtersModalEl) {
+        new MutationObserver(() => {
+            if (filtersModalEl.classList.contains('active')) {
+                setTimeout(drawPriceHistogram, 60);
+            }
+        }).observe(filtersModalEl, { attributes: true, attributeFilter: ['class'] });
+    }
+    // Initial fetch
+    fetchPriceHistogram();
+
     // --- Mobile Filter Modal ---
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
     const filtersModal = document.getElementById('filters-modal');
@@ -461,6 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
             updatePriceUI(currentMode); // Update slider and selects
             fetchListings();
+            if (typeof fetchPriceHistogram === 'function') fetchPriceHistogram();
         });
     });
 

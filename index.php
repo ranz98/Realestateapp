@@ -325,6 +325,7 @@
                 <div class="t-so-filter-group t-so-price-group">
                     <label>Price Range</label>
                     <div class="price-slider-container">
+                        <canvas id="price-histogram" class="price-histogram" aria-hidden="true"></canvas>
                         <div id="price-slider"></div>
                         <div id="price-range-display" class="price-display">Rs. 0 - Rs. 500k</div>
                     </div>
