@@ -96,19 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rect.width === 0 || rect.height === 0) return;
             flyInRunning = true;
             map.invalidateSize();
-            // Generous bounds around Sri Lanka so the surrounding Indian Ocean
-            // (and a sliver of southern India) stays visible when zooming out.
-            // Soft viscosity makes the edge elastic instead of hard-snapping back.
-            // Much wider bounds — full Indian Ocean region, southern India, Maldives,
-            // and well out to sea so zoom-out feels free instead of snapping back.
-            const SL_BOUNDS = L.latLngBounds(L.latLng(-8.0, 70.0), L.latLng(22.0, 92.0));
-            map.options.maxBoundsViscosity = 0.3;
+            // Map is fully unlocked — user can pan anywhere in the world, any zoom level.
+            map.options.maxBoundsViscosity = 0;
 
             if (skipAnimation) {
                 brandOverlay.remove();
                 map.setView([6.90, 79.96], 12, { animate: false });
-                map.setMaxBounds(SL_BOUNDS);
-                map.options.minZoom = 4;
+                map.setMaxBounds(null);
                 flyInCompleted = true; flyInRunning = false;
                 return;
             }
@@ -118,8 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     brandOverlay.classList.add('brand-exit');
                     setTimeout(() => { brandOverlay.remove(); }, 1300);
 
-                    map.setMaxBounds(SL_BOUNDS);
-                    map.options.minZoom = 4;
+                    map.setMaxBounds(null);
                     flyInCompleted = true; flyInRunning = false;
 
                     // AUTO-SPLIT AFTER FLY-IN (only on mobile)
