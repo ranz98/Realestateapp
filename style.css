@@ -532,18 +532,18 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 }
 
 .noUi-handle {
-    border: 2px solid var(--primary);
-    background: var(--bg-card);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    cursor: pointer;
+    border: none;
+    background: var(--primary);
+    box-shadow: none;
+    border-radius: 0;
+    cursor: ew-resize;
 }
 
 .noUi-horizontal .noUi-handle {
-    width: 20px;
-    height: 20px;
-    right: -10px;
-    top: -7px;
+    width: 3px;
+    height: 18px;
+    right: -1.5px;
+    top: -6px;
 }
 
 .noUi-handle::before,
