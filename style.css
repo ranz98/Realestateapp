@@ -531,24 +531,29 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     background: var(--primary);
 }
 
-.noUi-handle {
-    border: none;
-    background: var(--primary);
-    box-shadow: none;
-    border-radius: 0;
-    cursor: ew-resize;
+/* Slider handles = thin vertical lines (no circles) */
+.noUi-target .noUi-handle,
+.noUi-handle.noUi-handle-lower,
+.noUi-handle.noUi-handle-upper {
+    border: none !important;
+    background: var(--primary) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    cursor: ew-resize !important;
 }
 
 .noUi-horizontal .noUi-handle {
-    width: 3px;
-    height: 18px;
-    right: -1.5px;
-    top: -6px;
+    width: 3px !important;
+    height: 18px !important;
+    right: -1.5px !important;
+    top: -6px !important;
 }
 
 .noUi-handle::before,
 .noUi-handle::after {
-    display: none;
+    display: none !important;
+    content: none !important;
+    background: none !important;
 }
 
 /* ============================================
