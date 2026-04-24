@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let drawVertexCount = 0;
     window._drawFilterPolygon = null; // turf polygon for filtering
 
-    const drawBtn      = document.getElementById('draw-btn');
+    const drawBtn = document.getElementById('draw-btn');
     const drawClearBtn = document.getElementById('draw-clear-btn');
     const drawCloseBtn = document.getElementById('draw-close-btn');
 
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
             } else {
                 drawBtn.classList.add('draw-delete-mode');
-                drawBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Delete Last Point';
+                drawBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Undo Last Point';
             }
             if (drawCloseBtn) {
                 drawCloseBtn.style.display = drawVertexCount >= 3 ? 'flex' : 'none';
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hideOnboard = (startAfter) => {
             if (!onboard) return;
             onboard.classList.remove('show');
-            try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) {}
+            try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) { }
             if (startAfter) startDraw();
         };
         if (onboardGot) onboardGot.addEventListener('click', () => hideOnboard(true));
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (drawingMode) { clearDraw(); return; }
             // Not yet drawing — start (with onboarding check)
             let seen = false;
-            try { seen = localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) {}
+            try { seen = localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) { }
             if (!seen && onboard) {
                 onboard.classList.add('show');
             } else {
@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Save current center before layout changes (used only after fly-in is done)
         const savedCenter = map ? map.getCenter() : null;
-        const savedZoom   = map ? map.getZoom()   : null;
+        const savedZoom = map ? map.getZoom() : null;
 
         if (mode === 'list') {
             document.getElementById('mvt-list')?.classList.add('mvt-active');
