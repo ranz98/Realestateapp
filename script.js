@@ -155,10 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let drawnLayer = null;
     let drawPolygon = null;
     let drawingMode = false;
+    let drawVertexCount = 0;
     window._drawFilterPolygon = null; // turf polygon for filtering
 
-    const drawBtn = document.getElementById('draw-btn');
+    const drawBtn      = document.getElementById('draw-btn');
     const drawClearBtn = document.getElementById('draw-clear-btn');
+    const drawCloseBtn = document.getElementById('draw-close-btn');
 
     if (map && drawBtn && typeof L.Draw !== 'undefined' && typeof turf !== 'undefined') {
         const drawnItems = new L.FeatureGroup().addTo(map);
@@ -175,14 +177,38 @@ document.addEventListener('DOMContentLoaded', () => {
             allowIntersection: false,
         });
 
+        // Sync button states to current vertex count while drawing
+        const updateDrawUI = () => {
+            if (!drawingMode) return;
+            if (drawVertexCount === 0) {
+                drawBtn.classList.remove('draw-delete-mode');
+                drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
+            } else {
+                drawBtn.classList.add('draw-delete-mode');
+                drawBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Delete Last Point';
+            }
+            if (drawCloseBtn) {
+                drawCloseBtn.style.display = drawVertexCount >= 3 ? 'flex' : 'none';
+                // Re-trigger pop animation each time it becomes visible
+                if (drawVertexCount >= 3) {
+                    drawCloseBtn.style.animation = 'none';
+                    drawCloseBtn.offsetHeight; // reflow
+                    drawCloseBtn.style.animation = '';
+                }
+            }
+        };
+
         const startDraw = () => {
             if (drawnLayer) { drawnItems.removeLayer(drawnLayer); drawnLayer = null; }
             window._drawFilterPolygon = null;
+            drawVertexCount = 0;
             drawHandler.enable();
             drawingMode = true;
             drawBtn.classList.add('draw-active');
+            drawBtn.classList.remove('draw-delete-mode');
             drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
             drawClearBtn.style.display = 'none';
+            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
         };
 
         const clearDraw = () => {
@@ -190,9 +216,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window._drawFilterPolygon = null;
             drawHandler.disable();
             drawingMode = false;
-            drawBtn.classList.remove('draw-active');
+            drawVertexCount = 0;
+            drawBtn.classList.remove('draw-active', 'draw-delete-mode');
             drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
             drawClearBtn.style.display = 'none';
+            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
             fetchListings(); // reset to normal filter
         };
 
@@ -213,8 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === onboard) hideOnboard(false);
         });
 
+        // Draw-btn click: start drawing OR delete last vertex
         drawBtn.addEventListener('click', () => {
+            if (drawingMode && drawVertexCount > 0) {
+                // Delete last placed vertex
+                drawHandler.deleteLastVertex();
+                drawVertexCount = Math.max(0, drawVertexCount - 1);
+                updateDrawUI();
+                return;
+            }
             if (drawingMode) { clearDraw(); return; }
+            // Not yet drawing — start (with onboarding check)
             let seen = false;
             try { seen = localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) {}
             if (!seen && onboard) {
@@ -224,15 +261,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Close-shape btn: finish the polygon once ≥3 points exist
+        if (drawCloseBtn) {
+            drawCloseBtn.addEventListener('click', () => {
+                if (drawingMode && drawVertexCount >= 3) {
+                    drawHandler._finishShape();
+                }
+            });
+        }
+
         drawClearBtn.addEventListener('click', clearDraw);
+
+        // Track each vertex placed so buttons stay in sync
+        map.on('draw:drawvertex', () => {
+            drawVertexCount++;
+            updateDrawUI();
+        });
 
         map.on(L.Draw.Event.CREATED, (e) => {
             drawnLayer = e.layer;
             drawnItems.addLayer(drawnLayer);
             drawingMode = false;
+            drawVertexCount = 0;
             drawHandler.disable();
-            drawBtn.classList.remove('draw-active');
+            drawBtn.classList.remove('draw-active', 'draw-delete-mode');
             drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
+            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
             drawClearBtn.style.display = 'flex';
 
             // Build turf polygon from drawn shape
