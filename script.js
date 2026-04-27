@@ -1010,8 +1010,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isNaN(lat) || isNaN(lng)) return;
                 const priceIcon = L.divIcon({
                     className: 'custom-price-marker-wrapper',
-                    html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>',
-                    iconSize: [80, 24], iconAnchor: [40, 24]
+                    html: '<div class="price-marker-label">Rs.&nbsp;' + escapeHTML(formatPriceShort(prop.price)) + '</div>',
+                    iconSize: [1, 1],          // tiny anchor — actual pill uses CSS centering
+                    iconAnchor: [0, 0]
                 });
                 const marker = L.marker([lat, lng], { icon: priceIcon }).addTo(markersLayer);
                 let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';

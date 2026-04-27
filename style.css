@@ -1859,43 +1859,64 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 }
 .draw-onboard-got:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-/* Strip Leaflet's default white square from divIcon wrapper */
+/* Strip Leaflet's default white square + auto-size around the pill */
 .custom-price-marker-wrapper {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: visible !important;
+}
+/* Position the pill so its tail-tip sits exactly on the lat/lng point */
+.custom-price-marker-wrapper .price-marker-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 5px));
 }
 
-/* Permanent Price Markers */
+/* Permanent Price Markers — pill style */
 .price-marker-label {
+    position: relative;
+    display: inline-block;
     background: var(--bg-card);
-    border: 2px solid var(--primary);
+    border: 1.5px solid var(--primary);
     color: var(--text-primary);
-    font-weight: bold;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-card);
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 5px 9px 5px 9px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     text-align: center;
     white-space: nowrap;
-    opacity: 0.65;
-    /* Added transparency */
-    transition: opacity 0.2s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+    transform-origin: center bottom;
 }
 
 .price-marker-label:hover {
-    opacity: 1;
+    transform: scale(1.08);
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+    z-index: 1000;
+}
+.price-marker-label:hover::after {
+    border-top-color: var(--primary);
 }
 
 .price-marker-label::after {
     content: '';
     position: absolute;
-    bottom: -6px;
+    bottom: -5px;
     left: 50%;
     transform: translateX(-50%);
-    border-width: 6px 6px 0;
+    border-width: 5px 5px 0 5px;
     border-style: solid;
     border-color: var(--primary) transparent transparent transparent;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
 }
 
 /* Marker Cluster Bubbles — branded */
