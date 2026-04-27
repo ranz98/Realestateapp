@@ -66,7 +66,29 @@ document.addEventListener('DOMContentLoaded', () => {
             worldCopyJump: false
         });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 1, noWrap: true }).addTo(map);
-        markersLayer = L.layerGroup().addTo(map);
+        // Marker cluster — collapses overlapping pins into a single bubble.
+        // Falls back to plain LayerGroup if plugin isn't loaded.
+        if (typeof L.markerClusterGroup === 'function') {
+            markersLayer = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                spiderfyOnMaxZoom: true,
+                disableClusteringAtZoom: 15,    // street-level: show all pins individually
+                maxClusterRadius: 60,           // px — bigger = chunkier clusters
+                iconCreateFunction: function (cluster) {
+                    const count = cluster.getChildCount();
+                    let size = 'sm';
+                    if (count >= 100) size = 'lg';
+                    else if (count >= 25) size = 'md';
+                    return L.divIcon({
+                        html: '<div class="mhml-cluster mhml-cluster-' + size + '"><span>' + count + '</span></div>',
+                        className: 'mhml-cluster-wrapper',
+                        iconSize: L.point(40, 40)
+                    });
+                }
+            }).addTo(map);
+        } else {
+            markersLayer = L.layerGroup().addTo(map);
+        }
 
         // Brand overlay
         const overlayStyles = document.createElement('style');
