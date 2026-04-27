@@ -544,16 +544,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Redraw on resize / when the filter modal opens (canvas may have had 0 width before)
     window.addEventListener('resize', drawPriceHistogram);
+    let _histogramLoaded = false;
     const filtersModalEl = document.getElementById('filters-modal');
     if (filtersModalEl) {
         new MutationObserver(() => {
             if (filtersModalEl.classList.contains('active')) {
+                // Lazy fetch the histogram data the first time the modal is opened
+                if (!_histogramLoaded) {
+                    _histogramLoaded = true;
+                    fetchPriceHistogram();
+                }
                 setTimeout(drawPriceHistogram, 60);
             }
         }).observe(filtersModalEl, { attributes: true, attributeFilter: ['class'] });
     }
-    // Initial fetch
-    fetchPriceHistogram();
+    // Desktop (no filter modal) — fetch lazily after the heavy initial work settles
+    if (!filtersModalEl || window.matchMedia('(min-width: 769px)').matches) {
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+                if (!_histogramLoaded) { _histogramLoaded = true; fetchPriceHistogram(); }
+            }, { timeout: 4000 });
+        } else {
+            setTimeout(() => {
+                if (!_histogramLoaded) { _histogramLoaded = true; fetchPriceHistogram(); }
+            }, 2500);
+        }
+    }
 
     // --- Mobile Filter Modal ---
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
@@ -574,7 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
             updatePriceUI(currentMode); // Update slider and selects
             fetchListings();
-            if (typeof fetchPriceHistogram === 'function') fetchPriceHistogram();
+            // Only refire histogram if user has already opened it once — avoids extra request on mobile
+            if (typeof fetchPriceHistogram === 'function' && _histogramLoaded) fetchPriceHistogram();
         });
     });
 
