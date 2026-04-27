@@ -842,18 +842,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Map markers — use filteredData so markers match cards
-
-            if (mapElement && markersLayer) {
-                markersLayer.clearLayers();
-                filteredData.forEach(prop => {
-                    const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
-                    const marker = L.marker([prop.lat, prop.lng], { icon: priceIcon }).addTo(markersLayer);
-                    let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
-                    try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch (e) { }
-                    marker.bindPopup('<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'"><img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;"><h4 style="margin:0;font-size:1rem;">' + prop.title + '</h4><p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(prop.price) + '</p><span style="font-size:0.8rem;color:var(--text-secondary);">' + prop.type + ' | ' + prop.bedrooms + ' Bed | ' + prop.baths + ' Bath</span><div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div></div>', { closeButton: true, minWidth: 220 });
-                });
-            }
+            // Map pins are now handled by lazy/viewport-aware fetchMapPins().
+            // Trigger a pin refresh whenever filters change.
+            if (typeof fetchMapPins === 'function') fetchMapPins(true);
         } catch (e) {
             console.error('Fetch error:', e);
             if (!_fetchRetried) {
@@ -871,6 +862,171 @@ document.addEventListener('DOMContentLoaded', () => {
         if (str === null || str === undefined) return '';
         return new Option(str).innerHTML;
     }
+
+    // ============================================================
+    //  LAZY MAP PIN LOADING (viewport + zoom aware)
+    // ============================================================
+    // - Fetches only pins inside current map bounds (with 20% buffer)
+    // - Server-side LIMIT scales with zoom (sparser at world view, denser zoomed in)
+    // - Pin cache: existing visible pins are kept, only new ones added
+    // - AbortController kills in-flight requests on rapid pan/zoom
+    // - Debounced 350ms after moveend / zoomend
+    const _pinCache = new Map();         // id -> { marker, lat, lng }
+    let _pinsAbortCtrl = null;
+    let _pinsDebounceTimer = null;
+    let _lastFetchedKey = '';
+    // Lazy mode toggle — set automatically based on X-Total-Count from server.
+    // When false (small dataset): no bbox, no zoom limit, no refetch on pan/zoom.
+    const LAZY_THRESHOLD = 500;
+    let _lazyEnabled = null;             // null = unknown, true = use bbox, false = load all once
+
+    function _bufferedBounds() {
+        if (!map) return null;
+        const b = map.getBounds();
+        const sw = b.getSouthWest(), ne = b.getNorthEast();
+        const latPad = (ne.lat - sw.lat) * 0.2;
+        const lngPad = (ne.lng - sw.lng) * 0.2;
+        return {
+            minLat: sw.lat - latPad,
+            maxLat: ne.lat + latPad,
+            minLng: sw.lng - lngPad,
+            maxLng: ne.lng + lngPad,
+        };
+    }
+
+    async function fetchMapPins(force) {
+        if (!mapElement || !markersLayer || !map) return;
+        const bb = _bufferedBounds();
+        if (!bb) return;
+        const z = Math.round(map.getZoom());
+
+        // Skip if viewport hasn't meaningfully changed and not forced
+        const key = [
+            bb.minLat.toFixed(2), bb.maxLat.toFixed(2),
+            bb.minLng.toFixed(2), bb.maxLng.toFixed(2),
+            z, currentMode,
+            (minPriceInput?.value || ''), (maxPriceInput?.value || ''),
+            getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type'),
+            getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location'),
+            getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds'),
+            getVal('filter-baths', 'filter-baths-mobile'),
+            getVal('search-text', 'search-text-mobile', 'dfb-search-text'),
+        ].join('|');
+        if (!force && key === _lastFetchedKey) return;
+        _lastFetchedKey = key;
+
+        // Cancel any in-flight request
+        if (_pinsAbortCtrl) { try { _pinsAbortCtrl.abort(); } catch (e) {} }
+        _pinsAbortCtrl = new AbortController();
+
+        const baseParams = {
+            search: getVal('search-text', 'search-text-mobile', 'dfb-search-text'),
+            type: getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type'),
+            location: getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location'),
+            beds: getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds'),
+            baths: getVal('filter-baths', 'filter-baths-mobile'),
+            min_price: minPriceInput?.value || '',
+            max_price: maxPriceInput?.value || '',
+            listing_mode: currentMode,
+        };
+        // Only attach bbox + zoom when lazy mode is on (or unknown — let server tell us count)
+        if (_lazyEnabled !== false) {
+            baseParams.bbox = [bb.minLng, bb.minLat, bb.maxLng, bb.maxLat].join(',');
+            baseParams.zoom = z;
+        }
+        const params = new URLSearchParams(baseParams);
+
+        try {
+            const res = await fetch('api/get_apartments.php?' + params.toString(), { signal: _pinsAbortCtrl.signal });
+            if (!res.ok) return;
+
+            // Read total count → decide if lazy mode is needed
+            const totalHdr = res.headers.get('X-Total-Count');
+            if (totalHdr !== null) {
+                const total = parseInt(totalHdr, 10);
+                if (!isNaN(total)) {
+                    const wasEnabled = _lazyEnabled;
+                    _lazyEnabled = total > LAZY_THRESHOLD;
+                    // If we just discovered we don't need lazy mode, refetch WITHOUT bbox
+                    // so we get the full set in one go (only when transitioning).
+                    if (wasEnabled !== false && _lazyEnabled === false && (baseParams.bbox || force)) {
+                        // Small dataset — re-fire without bbox/zoom to load everything
+                        _lastFetchedKey = '';
+                        setTimeout(() => fetchMapPins(true), 0);
+                        return;
+                    }
+                }
+            }
+
+            const data = await res.json();
+            if (!Array.isArray(data)) return;
+
+            // Optional polygon filter
+            const poly = window._drawFilterPolygon;
+            const props = poly && typeof turf !== 'undefined'
+                ? data.filter(p => {
+                    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
+                    if (isNaN(lat) || isNaN(lng)) return false;
+                    return turf.booleanPointInPolygon(turf.point([lng, lat]), poly);
+                })
+                : data;
+
+            // Diff: keep cached markers still in result, remove the rest, add new
+            const incomingIds = new Set(props.map(p => String(p.id)));
+            // Remove pins no longer in viewport / result
+            for (const [id, entry] of _pinCache) {
+                if (!incomingIds.has(id)) {
+                    markersLayer.removeLayer(entry.marker);
+                    _pinCache.delete(id);
+                }
+            }
+            // Add new pins
+            props.forEach(prop => {
+                const id = String(prop.id);
+                if (_pinCache.has(id)) return;
+                const lat = parseFloat(prop.lat), lng = parseFloat(prop.lng);
+                if (isNaN(lat) || isNaN(lng)) return;
+                const priceIcon = L.divIcon({
+                    className: 'custom-price-marker-wrapper',
+                    html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>',
+                    iconSize: [80, 24], iconAnchor: [40, 24]
+                });
+                const marker = L.marker([lat, lng], { icon: priceIcon }).addTo(markersLayer);
+                let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
+                try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch (e) {}
+                marker.bindPopup(
+                    '<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'">' +
+                    '<img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;">' +
+                    '<h4 style="margin:0;font-size:1rem;">' + escapeHTML(prop.title) + '</h4>' +
+                    '<p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(prop.price) + '</p>' +
+                    '<span style="font-size:0.8rem;color:var(--text-secondary);">' + escapeHTML(prop.type) + ' | ' + escapeHTML(prop.bedrooms) + ' Bed | ' + escapeHTML(prop.baths) + ' Bath</span>' +
+                    '<div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div>' +
+                    '</div>',
+                    { closeButton: true, minWidth: 220 }
+                );
+                _pinCache.set(id, { marker, lat, lng });
+            });
+        } catch (e) {
+            if (e.name !== 'AbortError') console.warn('fetchMapPins error:', e);
+        }
+    }
+
+    function _scheduleFetchMapPins() {
+        clearTimeout(_pinsDebounceTimer);
+        _pinsDebounceTimer = setTimeout(() => fetchMapPins(false), 350);
+    }
+
+    if (map) {
+        map.on('moveend zoomend', () => {
+            if (flyInRunning) return;
+            // Small dataset — pins are already all loaded, no need to refetch on pan/zoom
+            if (_lazyEnabled === false) return;
+            _scheduleFetchMapPins();
+        });
+    }
+    // Expose for debugging / external triggers
+    window.fetchMapPins = fetchMapPins;
+
     if (grid) fetchListings();
 
     // Desktop DFB controls
