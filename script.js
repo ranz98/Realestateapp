@@ -373,92 +373,96 @@ document.addEventListener('DOMContentLoaded', () => {
     mvtButtons.forEach(btn => btn.addEventListener('click', () => applyMobileMode(btn.dataset.mode)));
 
     // ============================================================
-    //  DRAGGABLE SPLIT-VIEW BOTTOM SHEET (mobile)
-    //  Drag the grip up/down to snap between:
-    //    - Collapsed (~12vh, mostly map visible)
-    //    - Default  (60vh)
-    //    - Expanded (90vh, mostly listings)
+    //  DRAGGABLE SPLIT-VIEW BOTTOM SHEET (mobile) — Pointer Events
+    //  Snap heights: 12vh (collapsed), 60vh (default), 90vh (expanded)
     // ============================================================
     (function setupSheetDrag() {
         const sheet = document.getElementById('listings-section');
         const handle = document.getElementById('split-drag-handle');
-        if (!sheet || !handle) return;
-
-        const SNAPS = [12, 60, 90];   // vh percentages
-        let startY = 0, startH = 0, dragging = false, vh = 0;
-        let currentSnap = 60;
-
-        function setHeight(v, animated) {
-            // v in vh
-            const min = 8, max = 95;
-            const clamped = Math.max(min, Math.min(max, v));
-            sheet.style.setProperty('--sheet-height', clamped + 'vh');
-            if (!animated) sheet.classList.add('dragging');
+        if (!sheet || !handle) {
+            console.warn('[sheet-drag] missing elements', { sheet: !!sheet, handle: !!handle });
+            return;
         }
-        function snap(v) {
-            // pick the closest snap point
-            let best = SNAPS[0], bestDist = Infinity;
-            for (const s of SNAPS) {
-                const d = Math.abs(s - v);
-                if (d < bestDist) { bestDist = d; best = s; }
-            }
+
+        const SNAPS = [12, 60, 90];          // in vh
+        const TAP_TIME_MS = 250;
+        const TAP_DIST_PX = 8;
+
+        let startY = 0, startH = 0, vh = 0;
+        let dragging = false, moved = false, startTime = 0;
+        let currentSnap = 60;
+        let activePointerId = null;
+
+        const inSplitMode = () => !!document.querySelector('.main-container.split-mode');
+
+        function setHeight(v) {
+            const clamped = Math.max(8, Math.min(95, v));
+            sheet.style.setProperty('--sheet-height', clamped + 'vh');
+        }
+        function snapTo(target) {
+            const best = SNAPS.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
             currentSnap = best;
             sheet.classList.remove('dragging');
+            handle.classList.remove('is-active');
             sheet.style.setProperty('--sheet-height', best + 'vh');
-            // Tell map to recompute size after the snap settles
-            if (window.map) setTimeout(() => { try { window.map.invalidateSize(); } catch (e) {} }, 340);
-            // Toggle helper classes for downstream styling/logic
             sheet.classList.toggle('sheet-collapsed', best <= 20);
             sheet.classList.toggle('sheet-expanded', best >= 80);
+            if (window.map) setTimeout(() => { try { window.map.invalidateSize(); } catch (e) {} }, 360);
         }
 
-        function onStart(e) {
-            if (!document.querySelector('.main-container.split-mode')) return;
-            const t = e.touches ? e.touches[0] : e;
-            startY = t.clientY;
+        function onPointerDown(e) {
+            if (!inSplitMode()) return;
+            // Only react to primary pointer / first touch
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            activePointerId = e.pointerId;
+            try { handle.setPointerCapture(e.pointerId); } catch (_) {}
             vh = window.innerHeight / 100;
+            startY = e.clientY;
             startH = sheet.getBoundingClientRect().height / vh;
-            dragging = true;
+            dragging = true; moved = false;
+            startTime = Date.now();
             sheet.classList.add('dragging');
+            handle.classList.add('is-active');
             e.preventDefault();
         }
-        function onMove(e) {
-            if (!dragging) return;
-            const t = e.touches ? e.touches[0] : e;
-            const dy = t.clientY - startY;
-            const newH = startH - (dy / vh);
-            setHeight(newH, false);
+        function onPointerMove(e) {
+            if (!dragging || e.pointerId !== activePointerId) return;
+            const dy = e.clientY - startY;
+            if (Math.abs(dy) > TAP_DIST_PX) moved = true;
+            setHeight(startH - (dy / vh));
             e.preventDefault();
         }
-        function onEnd(e) {
-            if (!dragging) return;
+        function onPointerEnd(e) {
+            if (!dragging || e.pointerId !== activePointerId) return;
+            const elapsed = Date.now() - startTime;
             dragging = false;
+            try { handle.releasePointerCapture(activePointerId); } catch (_) {}
+            activePointerId = null;
+
+            // Tap (no significant drag) → cycle to next snap
+            if (!moved && elapsed < TAP_TIME_MS) {
+                const idx = SNAPS.indexOf(currentSnap);
+                snapTo(SNAPS[(idx + 1) % SNAPS.length]);
+                return;
+            }
             const cur = sheet.getBoundingClientRect().height / vh;
-            snap(cur);
+            snapTo(cur);
         }
 
-        // Touch events (mobile primary)
-        handle.addEventListener('touchstart', onStart, { passive: false });
-        handle.addEventListener('touchmove', onMove, { passive: false });
-        handle.addEventListener('touchend', onEnd);
-        handle.addEventListener('touchcancel', onEnd);
-        // Mouse events (desktop testing / hybrid devices)
-        handle.addEventListener('mousedown', (e) => { onStart(e); document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', upOnce); });
-        function upOnce(e) {
-            onEnd(e);
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', upOnce);
+        handle.addEventListener('pointerdown', onPointerDown);
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerEnd);
+        handle.addEventListener('pointercancel', onPointerEnd);
+
+        // Initialize snap state when split-mode first applies
+        const mc = document.querySelector('.main-container');
+        if (mc) {
+            new MutationObserver(() => {
+                if (mc.classList.contains('split-mode')) {
+                    sheet.style.setProperty('--sheet-height', currentSnap + 'vh');
+                }
+            }).observe(mc, { attributes: true, attributeFilter: ['class'] });
         }
-        // Tap (no drag) on handle = cycle through snap points
-        let tapStartT = 0;
-        handle.addEventListener('touchstart', () => { tapStartT = Date.now(); }, { passive: true });
-        handle.addEventListener('touchend', () => {
-            if (Date.now() - tapStartT < 220) {
-                const idx = SNAPS.indexOf(currentSnap);
-                const next = SNAPS[(idx + 1) % SNAPS.length];
-                snap(next);
-            }
-        });
     })();
 
     if (isMobile()) {

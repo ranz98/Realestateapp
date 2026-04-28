@@ -965,13 +965,16 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     }
 
     .main-container.split-mode .listings-section {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
         position: absolute !important;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
         width: 100% !important;
-        height: var(--sheet-height, 60vh);
+        height: var(--sheet-height, 60vh) !important;
+        max-height: none !important;
         flex: none !important;
         z-index: 20;
         background: var(--bg-main);
@@ -980,52 +983,61 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         border-top-right-radius: 18px;
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow: hidden;
-        -webkit-overflow-scrolling: touch;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
         transition: height 0.32s cubic-bezier(0.2, 0.85, 0.25, 1);
         will-change: height;
+        touch-action: pan-y;
     }
     .main-container.split-mode .listings-section.dragging {
         transition: none !important;
-        animation: none !important;
     }
     .main-container.split-mode .listings-scroll-container {
-        height: calc(100% - 28px);
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
     /* Drag handle (the grippy bar at the top of the bottom-sheet) */
     .split-drag-handle {
         display: none;
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        height: 28px;
+        flex: 0 0 32px;
+        height: 32px;
         width: 100%;
         background: var(--bg-main);
         border-top-left-radius: 18px;
         border-top-right-radius: 18px;
         cursor: grab;
         touch-action: none;
+        -ms-touch-action: none;
         user-select: none;
         -webkit-user-select: none;
         align-items: center;
         justify-content: center;
+        z-index: 5;
+        position: relative;
     }
-    .main-container.split-mode .split-drag-handle { display: flex; }
+    .main-container.split-mode .split-drag-handle { display: flex !important; }
     .split-drag-handle:active { cursor: grabbing; }
+    /* Tap target — invisible larger area for easier finger hit */
+    .split-drag-handle::before {
+        content: '';
+        position: absolute;
+        inset: -10px 0;
+    }
     .split-drag-grip {
         width: 44px;
         height: 5px;
         border-radius: 999px;
-        background: var(--text-secondary, rgba(0,0,0,0.25));
-        opacity: 0.45;
+        background: var(--text-secondary, rgba(0,0,0,0.35));
+        opacity: 0.55;
         transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+        pointer-events: none;
     }
     .split-drag-handle:hover .split-drag-grip,
-    .split-drag-handle:active .split-drag-grip {
+    .split-drag-handle:active .split-drag-grip,
+    .split-drag-handle.is-active .split-drag-grip {
         opacity: 1;
-        transform: scaleX(1.15);
+        transform: scaleX(1.2);
         background: var(--primary);
     }
 
