@@ -372,6 +372,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     mvtButtons.forEach(btn => btn.addEventListener('click', () => applyMobileMode(btn.dataset.mode)));
 
+    // ============================================================
+    //  DRAGGABLE SPLIT-VIEW BOTTOM SHEET (mobile)
+    //  Drag the grip up/down to snap between:
+    //    - Collapsed (~12vh, mostly map visible)
+    //    - Default  (60vh)
+    //    - Expanded (90vh, mostly listings)
+    // ============================================================
+    (function setupSheetDrag() {
+        const sheet = document.getElementById('listings-section');
+        const handle = document.getElementById('split-drag-handle');
+        if (!sheet || !handle) return;
+
+        const SNAPS = [12, 60, 90];   // vh percentages
+        let startY = 0, startH = 0, dragging = false, vh = 0;
+        let currentSnap = 60;
+
+        function setHeight(v, animated) {
+            // v in vh
+            const min = 8, max = 95;
+            const clamped = Math.max(min, Math.min(max, v));
+            sheet.style.setProperty('--sheet-height', clamped + 'vh');
+            if (!animated) sheet.classList.add('dragging');
+        }
+        function snap(v) {
+            // pick the closest snap point
+            let best = SNAPS[0], bestDist = Infinity;
+            for (const s of SNAPS) {
+                const d = Math.abs(s - v);
+                if (d < bestDist) { bestDist = d; best = s; }
+            }
+            currentSnap = best;
+            sheet.classList.remove('dragging');
+            sheet.style.setProperty('--sheet-height', best + 'vh');
+            // Tell map to recompute size after the snap settles
+            if (window.map) setTimeout(() => { try { window.map.invalidateSize(); } catch (e) {} }, 340);
+            // Toggle helper classes for downstream styling/logic
+            sheet.classList.toggle('sheet-collapsed', best <= 20);
+            sheet.classList.toggle('sheet-expanded', best >= 80);
+        }
+
+        function onStart(e) {
+            if (!document.querySelector('.main-container.split-mode')) return;
+            const t = e.touches ? e.touches[0] : e;
+            startY = t.clientY;
+            vh = window.innerHeight / 100;
+            startH = sheet.getBoundingClientRect().height / vh;
+            dragging = true;
+            sheet.classList.add('dragging');
+            e.preventDefault();
+        }
+        function onMove(e) {
+            if (!dragging) return;
+            const t = e.touches ? e.touches[0] : e;
+            const dy = t.clientY - startY;
+            const newH = startH - (dy / vh);
+            setHeight(newH, false);
+            e.preventDefault();
+        }
+        function onEnd(e) {
+            if (!dragging) return;
+            dragging = false;
+            const cur = sheet.getBoundingClientRect().height / vh;
+            snap(cur);
+        }
+
+        // Touch events (mobile primary)
+        handle.addEventListener('touchstart', onStart, { passive: false });
+        handle.addEventListener('touchmove', onMove, { passive: false });
+        handle.addEventListener('touchend', onEnd);
+        handle.addEventListener('touchcancel', onEnd);
+        // Mouse events (desktop testing / hybrid devices)
+        handle.addEventListener('mousedown', (e) => { onStart(e); document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', upOnce); });
+        function upOnce(e) {
+            onEnd(e);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', upOnce);
+        }
+        // Tap (no drag) on handle = cycle through snap points
+        let tapStartT = 0;
+        handle.addEventListener('touchstart', () => { tapStartT = Date.now(); }, { passive: true });
+        handle.addEventListener('touchend', () => {
+            if (Date.now() - tapStartT < 220) {
+                const idx = SNAPS.indexOf(currentSnap);
+                const next = SNAPS[(idx + 1) % SNAPS.length];
+                snap(next);
+            }
+        });
+    })();
+
     if (isMobile()) {
         applyMobileMode(localStorage.getItem('mobileViewMode') || 'map');
     }
