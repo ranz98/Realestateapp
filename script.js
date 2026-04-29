@@ -389,8 +389,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const SNAPS = [12, 32, 52, 72, 92];   // in vh — 5 snap points
-        const DEFAULT_SNAP = 52;
+        const SNAPS = [12, 32, 45, 70, 92];   // in vh — 5 snap points (middle nudged down to 45)
+        const DEFAULT_SNAP = 45;
+        const TOP_SNAP = 92;                  // dragging to this snap → switch to full list view
         const TAP_TIME_MS = 250;
         const TAP_DIST_PX = 8;
 
@@ -413,6 +414,18 @@ document.addEventListener('DOMContentLoaded', () => {
             sheet.style.setProperty('--sheet-height', best + 'vh');
             sheet.classList.toggle('sheet-collapsed', best <= 20);
             sheet.classList.toggle('sheet-expanded', best >= 80);
+
+            // Top snap → animate up then switch to full list view
+            if (best === TOP_SNAP && typeof applyMobileMode === 'function') {
+                setTimeout(() => {
+                    applyMobileMode('list');
+                    // Reset snap state so re-entering split mode starts at default
+                    currentSnap = DEFAULT_SNAP;
+                    sheet.style.setProperty('--sheet-height', DEFAULT_SNAP + 'vh');
+                }, 320); // wait for snap-up transition to finish
+                return;
+            }
+
             if (window.map) setTimeout(() => { try { window.map.invalidateSize(); } catch (e) {} }, 360);
         }
 
