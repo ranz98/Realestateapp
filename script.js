@@ -374,7 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ============================================================
     //  DRAGGABLE SPLIT-VIEW BOTTOM SHEET (mobile) — Pointer Events
-    //  Snap heights: 12vh (collapsed), 60vh (default), 90vh (expanded)
+    //  5 snap heights:
+    //    12vh — bottom (mostly map)
+    //    32vh — half-down
+    //    52vh — middle
+    //    72vh — half-up
+    //    92vh — full up (mostly listings)
     // ============================================================
     (function setupSheetDrag() {
         const sheet = document.getElementById('listings-section');
@@ -384,13 +389,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const SNAPS = [12, 60, 90];          // in vh
+        const SNAPS = [12, 32, 52, 72, 92];   // in vh — 5 snap points
+        const DEFAULT_SNAP = 52;
         const TAP_TIME_MS = 250;
         const TAP_DIST_PX = 8;
 
         let startY = 0, startH = 0, vh = 0;
         let dragging = false, moved = false, startTime = 0;
-        let currentSnap = 60;
+        let currentSnap = DEFAULT_SNAP;
         let activePointerId = null;
 
         const inSplitMode = () => !!document.querySelector('.main-container.split-mode');
