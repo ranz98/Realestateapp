@@ -60,7 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mapElement && typeof L !== 'undefined') {
         map = L.map('map', { center: [20, 0], zoom: 2, minZoom: 2, attributionControl: false, zoomControl: true, scrollWheelZoom: true });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
-        markersLayer = L.layerGroup().addTo(map);
+        // Use markercluster when available so 10k+ pins don't melt the browser.
+        markersLayer = (typeof L.markerClusterGroup === 'function')
+            ? L.markerClusterGroup({
+                maxClusterRadius: 60,
+                showCoverageOnHover: false,
+                spiderfyOnMaxZoom: true,
+                chunkedLoading: true,
+            })
+            : L.layerGroup();
+        markersLayer.addTo(map);
 
         // Brand overlay
         const overlayStyles = document.createElement('style');
@@ -260,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const maxD = (maxVal >= currentMax) ? (currentMax >= 1000000 ? (currentMax / 1000000) + 'M+' : '1M+') : maxVal.toLocaleString();
             if (priceDisplay) priceDisplay.innerText = 'Rs. ' + minD + ' - Rs. ' + maxD;
         });
-        priceSlider.noUiSlider.on('change', () => fetchListings());
+        priceSlider.noUiSlider.on('change', () => debouncedFetchListings());
     }
 
     // --- Mobile Filter Modal ---
@@ -430,53 +439,115 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Pagination state ---
+    const PAGE_SIZE = 24;
+    let _listingsPage = 1;
+    let _listingsHasMore = true;
+    let _listingsLoading = false;
+    let _listingsTotal = 0;
+    let _listingsAbort = null;
     let _fetchRetried = false;
-    const fetchListings = async () => {
+
+    function buildFilterParams() {
+        const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
+        const type = getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type');
+        const location = getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location');
+        const beds = getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds');
+        const baths = getVal('filter-baths', 'filter-baths-mobile');
+        const min_price = minPriceInput?.value || '';
+        const max_price = maxPriceInput?.value || '';
+        const sort = getVal('filter-sort', 'filter-sort-mobile');
+        const listing_mode = currentMode;
+        return new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
+    }
+
+    function updateCountBadges(total) {
+        const dfbCount = document.getElementById('dfb-listings-count');
+        if (dfbCount) dfbCount.textContent = total + (total === 1 ? ' listing' : ' listings');
+        const drawerCount = document.getElementById('t-drawer-listings-count-num');
+        if (drawerCount) drawerCount.textContent = total;
+    }
+
+    // Map markers fetched separately so the list can paginate while the map
+    // shows ALL filtered properties (capped server-side at 5000).
+    let _mapAbort = null;
+    async function fetchMapMarkers() {
+        if (!mapElement || !markersLayer) return;
         try {
-            const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
-            const type = getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type');
-            const location = getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location');
-            const beds = getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds');
-            const baths = getVal('filter-baths', 'filter-baths-mobile');
-            const min_price = minPriceInput?.value || '';
-            const max_price = maxPriceInput?.value || '';
-            const sort = getVal('filter-sort', 'filter-sort-mobile');
-            const listing_mode = currentMode;
+            if (_mapAbort) _mapAbort.abort();
+            _mapAbort = new AbortController();
+            const url = 'api/get_map_markers.php?' + buildFilterParams().toString();
+            const res = await fetch(url, { signal: _mapAbort.signal });
+            if (!res.ok) return;
+            const data = await res.json();
+            const rows = (data && data.markers) || [];
+            markersLayer.clearLayers();
+            const batch = [];
+            rows.forEach(m => {
+                if (m.lat == null || m.lng == null) return;
+                const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(m.price)) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
+                const marker = L.marker([m.lat, m.lng], { icon: priceIcon });
+                marker.bindPopup('<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + m.id + '\'"><h4 style="margin:0;font-size:1rem;">' + escapeHTML(m.title || '') + '</h4><p style="margin:0.25rem 0 0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(m.price) + '</p><span style="font-size:0.8rem;color:var(--text-secondary);">' + escapeHTML(m.type || '') + '</span><div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div></div>', { closeButton: true, minWidth: 200 });
+                batch.push(marker);
+            });
+            if (typeof markersLayer.addLayers === 'function') {
+                markersLayer.addLayers(batch); // markercluster fast-path
+            } else {
+                batch.forEach(m => markersLayer.addLayer(m));
+            }
+        } catch (e) { /* aborted or transient — ignore */ }
+    }
 
-            const params = new URLSearchParams({ search, type, location, beds, baths, min_price, max_price, sort, listing_mode });
+    /**
+     * Fetch a page of listings.
+     *  - reset=true (default): page 1, replace grid contents, refresh map.
+     *  - reset=false: append next page (infinite scroll).
+     */
+    async function fetchListings(reset) {
+        if (reset === undefined) reset = true;
+        if (_listingsLoading) return;
+        if (reset) {
+            _listingsPage = 1;
+            _listingsHasMore = true;
+            if (_listingsAbort) _listingsAbort.abort();
+        } else {
+            if (!_listingsHasMore) return;
+            _listingsPage += 1;
+        }
+        _listingsLoading = true;
 
-            const controller = new AbortController();
-            /* --- FIX: Increased timeout to 20s for better reliability on mobile --- */
-            const timeoutId = setTimeout(() => controller.abort(), 20000);
-            const fetchUrl = 'api/get_apartments.php?' + params.toString();
-            const res = await fetch(fetchUrl, { signal: controller.signal });
+        try {
+            const params = buildFilterParams();
+            params.set('page', String(_listingsPage));
+            params.set('limit', String(PAGE_SIZE));
+
+            _listingsAbort = new AbortController();
+            const timeoutId = setTimeout(() => _listingsAbort.abort(), 20000);
+            const res = await fetch('api/get_apartments.php?' + params.toString(), { signal: _listingsAbort.signal });
             clearTimeout(timeoutId);
 
-            /* --- FIX: Check res.ok to catch 403/500 errors before they cause JSON parser crashes --- */
             if (!res.ok) {
                 const errText = await res.text();
                 throw new Error(`Server error: ${res.status} ${res.statusText}. Response: ${errText.substring(0, 100)}`);
             }
+            const payload = await res.json();
+            const items = Array.isArray(payload) ? payload : (payload.items || []);
+            const total = Array.isArray(payload) ? items.length : (payload.total || 0);
+            const hasMore = Array.isArray(payload) ? false : !!payload.has_more;
 
-            const data = await res.json();
-            if (!Array.isArray(data)) throw new Error(data.error || 'Unexpected API response format');
-
-            // Reset retry flag on success
+            _listingsTotal = total;
+            _listingsHasMore = hasMore;
             _fetchRetried = false;
 
-            // Update listings count displays (desktop filter bar + mobile hamburger drawer)
-            const _count = data.length;
-            const _dfbCount = document.getElementById('dfb-listings-count');
-            if (_dfbCount) _dfbCount.textContent = _count + (_count === 1 ? ' listing' : ' listings');
-            const _drawerCount = document.getElementById('t-drawer-listings-count-num');
-            if (_drawerCount) _drawerCount.textContent = _count;
+            updateCountBadges(total);
+
+            if (reset && grid) grid.innerHTML = '';
 
             if (grid) {
-                grid.innerHTML = '';
-                if (data.length === 0) {
+                if (items.length === 0 && reset) {
                     grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">No properties match your search.</p>';
                 } else {
-                    data.forEach(prop => {
+                    items.forEach(prop => {
                         const card = document.createElement('div');
                         card.className = 'property-card';
 
@@ -568,36 +639,71 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Map markers
-
-            if (mapElement && markersLayer) {
-                markersLayer.clearLayers();
-                data.forEach(prop => {
-                    const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
-                    const marker = L.marker([prop.lat, prop.lng], { icon: priceIcon }).addTo(markersLayer);
-                    let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
-                    try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch (e) { }
-                    marker.bindPopup('<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'"><img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;"><h4 style="margin:0;font-size:1rem;">' + prop.title + '</h4><p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(prop.price) + '</p><span style="font-size:0.8rem;color:var(--text-secondary);">' + prop.type + ' | ' + prop.bedrooms + ' Bed | ' + prop.baths + ' Bath</span><div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div></div>', { closeButton: true, minWidth: 220 });
-                });
-            }
+            // Refresh map markers only on a fresh fetch (filter change),
+            // not on infinite-scroll appends.
+            if (reset) fetchMapMarkers();
         } catch (e) {
+            if (e && e.name === 'AbortError') return; // expected on rapid filter changes
             console.error('Fetch error:', e);
-            if (!_fetchRetried) {
+            if (reset && !_fetchRetried) {
                 _fetchRetried = true;
                 if (grid) grid.innerHTML = '<p>Loading properties...</p>';
-                setTimeout(fetchListings, 1200);
-            } else {
+                setTimeout(() => fetchListings(true), 1200);
+            } else if (reset) {
                 _fetchRetried = false;
                 if (grid) grid.innerHTML = '<p style="color:red;grid-column:span 2;">Failed to load properties. Please check your connection.</p>';
+            } else {
+                // Append failed — roll back the page increment so the user can retry.
+                _listingsPage = Math.max(1, _listingsPage - 1);
             }
+        } finally {
+            _listingsLoading = false;
         }
-    };
+    }
 
     function escapeHTML(str) {
         if (str === null || str === undefined) return '';
         return new Option(str).innerHTML;
     }
-    if (grid) fetchListings();
+
+    // Debounce wrapper — used for the price slider so dragging doesn't
+    // fire a fetch on every pixel of movement.
+    function debounce(fn, ms) {
+        let t;
+        return function(...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), ms);
+        };
+    }
+    const debouncedFetchListings = debounce(() => fetchListings(true), 350);
+
+    // Infinite scroll: when the user nears the bottom of the listings column,
+    // load the next page. Uses IntersectionObserver on a sentinel element.
+    function setupInfiniteScroll() {
+        const scroller = document.getElementById('listings-scroll-container');
+        if (!grid || !scroller) return;
+        let sentinel = document.getElementById('listings-sentinel');
+        if (!sentinel) {
+            sentinel = document.createElement('div');
+            sentinel.id = 'listings-sentinel';
+            sentinel.style.cssText = 'grid-column:1/-1;height:1px;';
+            grid.parentNode.insertBefore(sentinel, grid.nextSibling);
+        }
+        if (!('IntersectionObserver' in window)) return;
+        const obs = new IntersectionObserver(entries => {
+            entries.forEach(en => {
+                if (en.isIntersecting && _listingsHasMore && !_listingsLoading) {
+                    fetchListings(false);
+                }
+            });
+        }, { root: scroller, rootMargin: '600px 0px' });
+        obs.observe(sentinel);
+    }
+
+    if (grid) {
+        fetchListings(true);
+        setupInfiniteScroll();
+    }
 
     // Desktop DFB controls
     const dfbApply = document.getElementById('dfb-apply');
