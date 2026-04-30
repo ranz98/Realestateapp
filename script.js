@@ -102,8 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (skipAnimation) {
                 brandOverlay.remove();
                 map.setView([6.90, 79.96], 12, { animate: false });
-                map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
-                map.options.minZoom = 7;
                 flyInCompleted = true; flyInRunning = false;
                 return;
             }
@@ -113,8 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     brandOverlay.classList.add('brand-exit');
                     setTimeout(() => { brandOverlay.remove(); }, 1300);
 
-                    map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
-                    map.options.minZoom = 7;
                     flyInCompleted = true; flyInRunning = false;
 
                     // AUTO-SPLIT AFTER FLY-IN (only on mobile)
