@@ -58,37 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mapElement && typeof L !== 'undefined') {
-        // Start MAXED OUT — full world view centered on Sri Lanka, then dives down.
-        map = L.map('map', {
-            center: [7.87, 95.0], zoom: 1, minZoom: 1,
-            attributionControl: false, zoomControl: true, scrollWheelZoom: true,
-            zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true,
-            worldCopyJump: false
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 1, noWrap: true }).addTo(map);
-        // Marker cluster — collapses overlapping pins into a single bubble.
-        // Falls back to plain LayerGroup if plugin isn't loaded.
-        if (typeof L.markerClusterGroup === 'function') {
-            markersLayer = L.markerClusterGroup({
-                showCoverageOnHover: false,
-                spiderfyOnMaxZoom: true,
-                disableClusteringAtZoom: 15,    // street-level: show all pins individually
-                maxClusterRadius: 60,           // px — bigger = chunkier clusters
-                iconCreateFunction: function (cluster) {
-                    const count = cluster.getChildCount();
-                    let size = 'sm';
-                    if (count >= 100) size = 'lg';
-                    else if (count >= 25) size = 'md';
-                    return L.divIcon({
-                        html: '<div class="mhml-cluster mhml-cluster-' + size + '"><span>' + count + '</span></div>',
-                        className: 'mhml-cluster-wrapper',
-                        iconSize: L.point(40, 40)
-                    });
-                }
-            }).addTo(map);
-        } else {
-            markersLayer = L.layerGroup().addTo(map);
-        }
+        map = L.map('map', { center: [20, 0], zoom: 2, minZoom: 2, attributionControl: false, zoomControl: true, scrollWheelZoom: true });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 18, minZoom: 2 }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
 
         // Brand overlay
         const overlayStyles = document.createElement('style');
@@ -118,23 +90,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rect.width === 0 || rect.height === 0) return;
             flyInRunning = true;
             map.invalidateSize();
-            // Map is fully unlocked — user can pan anywhere in the world, any zoom level.
-            map.options.maxBoundsViscosity = 0;
-
             if (skipAnimation) {
                 brandOverlay.remove();
                 map.setView([6.90, 79.96], 12, { animate: false });
-                map.setMaxBounds(null);
+                map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
+                map.options.minZoom = 7;
                 flyInCompleted = true; flyInRunning = false;
                 return;
             }
-            map.flyTo([6.90, 79.96], 10, { duration: 2.6, easeLinearity: 0.18 });
+            map.flyTo([6.90, 79.96], 10, { duration: 1.1, easeLinearity: 0.25 });
             map.once('moveend', () => {
                 setTimeout(() => {
                     brandOverlay.classList.add('brand-exit');
                     setTimeout(() => { brandOverlay.remove(); }, 1300);
 
-                    map.setMaxBounds(null);
+                    map.setMaxBounds(L.latLngBounds(L.latLng(5.8, 79.5), L.latLng(9.9, 82.0)));
+                    map.options.minZoom = 7;
                     flyInCompleted = true; flyInRunning = false;
 
                     // AUTO-SPLIT AFTER FLY-IN (only on mobile)
@@ -166,154 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Draw-to-Filter ---
-    let drawnLayer = null;
-    let drawPolygon = null;
-    let drawingMode = false;
-    let drawVertexCount = 0;
-    window._drawFilterPolygon = null; // turf polygon for filtering
-
-    const drawBtn = document.getElementById('draw-btn');
-    const drawClearBtn = document.getElementById('draw-clear-btn');
-    const drawCloseBtn = document.getElementById('draw-close-btn');
-
-    if (map && drawBtn && typeof L.Draw !== 'undefined' && typeof turf !== 'undefined') {
-        const drawnItems = new L.FeatureGroup().addTo(map);
-
-        const drawHandler = new L.Draw.Polygon(map, {
-            shapeOptions: {
-                color: '#0ea5e9',
-                fillColor: '#0ea5e9',
-                fillOpacity: 0.08,
-                weight: 2,
-                dashArray: '6 4',
-            },
-            showArea: false,
-            allowIntersection: false,
-        });
-
-        // Sync button states to current vertex count while drawing
-        const updateDrawUI = () => {
-            if (!drawingMode) return;
-            if (drawVertexCount === 0) {
-                drawBtn.classList.remove('draw-delete-mode');
-                drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
-            } else {
-                drawBtn.classList.add('draw-delete-mode');
-                drawBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Undo Last Point';
-            }
-            if (drawCloseBtn) {
-                drawCloseBtn.style.display = drawVertexCount >= 3 ? 'flex' : 'none';
-                // Re-trigger pop animation each time it becomes visible
-                if (drawVertexCount >= 3) {
-                    drawCloseBtn.style.animation = 'none';
-                    drawCloseBtn.offsetHeight; // reflow
-                    drawCloseBtn.style.animation = '';
-                }
-            }
-        };
-
-        const startDraw = () => {
-            if (drawnLayer) { drawnItems.removeLayer(drawnLayer); drawnLayer = null; }
-            window._drawFilterPolygon = null;
-            drawVertexCount = 0;
-            drawHandler.enable();
-            drawingMode = true;
-            drawBtn.classList.add('draw-active');
-            drawBtn.classList.remove('draw-delete-mode');
-            drawBtn.innerHTML = '<i class="fa-solid fa-hand-pointer"></i> Click to draw…';
-            drawClearBtn.style.display = 'none';
-            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
-        };
-
-        const clearDraw = () => {
-            if (drawnLayer) { drawnItems.removeLayer(drawnLayer); drawnLayer = null; }
-            window._drawFilterPolygon = null;
-            drawHandler.disable();
-            drawingMode = false;
-            drawVertexCount = 0;
-            drawBtn.classList.remove('draw-active', 'draw-delete-mode');
-            drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
-            drawClearBtn.style.display = 'none';
-            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
-            fetchListings(); // reset to normal filter
-        };
-
-        // One-time onboarding overlay
-        const onboard = document.getElementById('draw-onboard');
-        const onboardGot = document.getElementById('draw-onboard-got');
-        const onboardClose = document.getElementById('draw-onboard-close');
-        const ONBOARD_KEY = 'drawOnboardSeen';
-        const hideOnboard = (startAfter) => {
-            if (!onboard) return;
-            onboard.classList.remove('show');
-            try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) { }
-            if (startAfter) startDraw();
-        };
-        if (onboardGot) onboardGot.addEventListener('click', () => hideOnboard(true));
-        if (onboardClose) onboardClose.addEventListener('click', () => hideOnboard(false));
-        if (onboard) onboard.addEventListener('click', (e) => {
-            if (e.target === onboard) hideOnboard(false);
-        });
-
-        // Draw-btn click: start drawing OR delete last vertex
-        drawBtn.addEventListener('click', () => {
-            if (drawingMode && drawVertexCount > 0) {
-                // Delete last placed vertex
-                drawHandler.deleteLastVertex();
-                drawVertexCount = Math.max(0, drawVertexCount - 1);
-                updateDrawUI();
-                return;
-            }
-            if (drawingMode) { clearDraw(); return; }
-            // Not yet drawing — start (with onboarding check)
-            let seen = false;
-            try { seen = localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) { }
-            if (!seen && onboard) {
-                onboard.classList.add('show');
-            } else {
-                startDraw();
-            }
-        });
-
-        // Close-shape btn: finish the polygon once ≥3 points exist
-        if (drawCloseBtn) {
-            drawCloseBtn.addEventListener('click', () => {
-                if (drawingMode && drawVertexCount >= 3) {
-                    drawHandler._finishShape();
-                }
-            });
-        }
-
-        drawClearBtn.addEventListener('click', clearDraw);
-
-        // Track each vertex placed so buttons stay in sync
-        map.on('draw:drawvertex', () => {
-            drawVertexCount++;
-            updateDrawUI();
-        });
-
-        map.on(L.Draw.Event.CREATED, (e) => {
-            drawnLayer = e.layer;
-            drawnItems.addLayer(drawnLayer);
-            drawingMode = false;
-            drawVertexCount = 0;
-            drawHandler.disable();
-            drawBtn.classList.remove('draw-active', 'draw-delete-mode');
-            drawBtn.innerHTML = '<i class="fa-solid fa-draw-polygon"></i> Draw Area';
-            if (drawCloseBtn) drawCloseBtn.style.display = 'none';
-            drawClearBtn.style.display = 'flex';
-
-            // Build turf polygon from drawn shape
-            const latlngs = drawnLayer.getLatLngs()[0];
-            const coords = latlngs.map(ll => [ll.lng, ll.lat]);
-            coords.push(coords[0]); // close ring
-            window._drawFilterPolygon = turf.polygon([coords]);
-
-            fetchListings();
-        });
-    }
-
     // --- Mobile View Toggle Components ---
     const mainContainer = document.querySelector('.main-container');
     const mapSection = document.getElementById('map-section');
@@ -335,10 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
         listingsSection?.classList.remove('mobile-hidden');
         mvtButtons.forEach(b => b.classList.remove('mvt-active'));
 
-        // Save current center before layout changes (used only after fly-in is done)
-        const savedCenter = map ? map.getCenter() : null;
-        const savedZoom = map ? map.getZoom() : null;
-
         if (mode === 'list') {
             document.getElementById('mvt-list')?.classList.add('mvt-active');
             document.body.classList.remove('mobile-map-only');
@@ -346,143 +165,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('mvt-split')?.classList.add('mvt-active');
             mainContainer?.classList.add('split-mode');
             document.body.classList.remove('mobile-map-only');
-            if (map) {
-                map.invalidateSize({ animate: false });
-                setTimeout(() => {
-                    map.invalidateSize({ animate: false });
-                    // Only re-center after the fly-in animation has already completed
-                    if (flyInCompleted && savedCenter) map.setView(savedCenter, savedZoom, { animate: false });
-                }, 320);
-            }
+            if (map) setTimeout(() => map.invalidateSize(), 150);
         } else if (mode === 'map') {
             document.getElementById('mvt-map')?.classList.add('mvt-active');
             mapSection?.classList.add('mobile-map-active');
             listingsSection?.classList.add('mobile-hidden');
             document.body.classList.add('mobile-map-only');
-            if (map) {
-                map.invalidateSize({ animate: false });
-                setTimeout(() => {
-                    map.invalidateSize({ animate: false });
-                    if (flyInCompleted && savedCenter) map.setView(savedCenter, savedZoom, { animate: false });
-                }, 320);
-            }
+            if (map) setTimeout(() => map.invalidateSize(), 150);
         }
         localStorage.setItem('mobileViewMode', mode);
     }
 
     mvtButtons.forEach(btn => btn.addEventListener('click', () => applyMobileMode(btn.dataset.mode)));
-
-    // ============================================================
-    //  DRAGGABLE SPLIT-VIEW BOTTOM SHEET (mobile) — Pointer Events
-    //  5 snap heights:
-    //    12vh — bottom (mostly map)
-    //    32vh — half-down
-    //    52vh — middle
-    //    72vh — half-up
-    //    92vh — full up (mostly listings)
-    // ============================================================
-    (function setupSheetDrag() {
-        const sheet = document.getElementById('listings-section');
-        const handle = document.getElementById('split-drag-handle');
-        if (!sheet || !handle) {
-            console.warn('[sheet-drag] missing elements', { sheet: !!sheet, handle: !!handle });
-            return;
-        }
-
-        const SNAPS = [12, 32, 45, 70, 92];   // in vh — 5 snap points (middle nudged down to 45)
-        const DEFAULT_SNAP = 45;
-        const TOP_SNAP = 92;                  // dragging to this snap → switch to full list view
-        const TAP_TIME_MS = 250;
-        const TAP_DIST_PX = 8;
-
-        let startY = 0, startH = 0, vh = 0;
-        let dragging = false, moved = false, startTime = 0;
-        let currentSnap = DEFAULT_SNAP;
-        let activePointerId = null;
-
-        const inSplitMode = () => !!document.querySelector('.main-container.split-mode');
-
-        function setHeight(v) {
-            const clamped = Math.max(8, Math.min(95, v));
-            sheet.style.setProperty('--sheet-height', clamped + 'vh');
-        }
-        function snapTo(target) {
-            const best = SNAPS.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
-            currentSnap = best;
-            sheet.classList.remove('dragging');
-            handle.classList.remove('is-active');
-            sheet.style.setProperty('--sheet-height', best + 'vh');
-            sheet.classList.toggle('sheet-collapsed', best <= 20);
-            sheet.classList.toggle('sheet-expanded', best >= 80);
-
-            // Top snap → animate up then switch to full list view
-            if (best === TOP_SNAP && typeof applyMobileMode === 'function') {
-                setTimeout(() => {
-                    applyMobileMode('list');
-                    // Reset snap state so re-entering split mode starts at default
-                    currentSnap = DEFAULT_SNAP;
-                    sheet.style.setProperty('--sheet-height', DEFAULT_SNAP + 'vh');
-                }, 320); // wait for snap-up transition to finish
-                return;
-            }
-
-            if (window.map) setTimeout(() => { try { window.map.invalidateSize(); } catch (e) {} }, 360);
-        }
-
-        function onPointerDown(e) {
-            if (!inSplitMode()) return;
-            // Only react to primary pointer / first touch
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-            activePointerId = e.pointerId;
-            try { handle.setPointerCapture(e.pointerId); } catch (_) {}
-            vh = window.innerHeight / 100;
-            startY = e.clientY;
-            startH = sheet.getBoundingClientRect().height / vh;
-            dragging = true; moved = false;
-            startTime = Date.now();
-            sheet.classList.add('dragging');
-            handle.classList.add('is-active');
-            e.preventDefault();
-        }
-        function onPointerMove(e) {
-            if (!dragging || e.pointerId !== activePointerId) return;
-            const dy = e.clientY - startY;
-            if (Math.abs(dy) > TAP_DIST_PX) moved = true;
-            setHeight(startH - (dy / vh));
-            e.preventDefault();
-        }
-        function onPointerEnd(e) {
-            if (!dragging || e.pointerId !== activePointerId) return;
-            const elapsed = Date.now() - startTime;
-            dragging = false;
-            try { handle.releasePointerCapture(activePointerId); } catch (_) {}
-            activePointerId = null;
-
-            // Tap (no significant drag) → cycle to next snap
-            if (!moved && elapsed < TAP_TIME_MS) {
-                const idx = SNAPS.indexOf(currentSnap);
-                snapTo(SNAPS[(idx + 1) % SNAPS.length]);
-                return;
-            }
-            const cur = sheet.getBoundingClientRect().height / vh;
-            snapTo(cur);
-        }
-
-        handle.addEventListener('pointerdown', onPointerDown);
-        handle.addEventListener('pointermove', onPointerMove);
-        handle.addEventListener('pointerup', onPointerEnd);
-        handle.addEventListener('pointercancel', onPointerEnd);
-
-        // Initialize snap state when split-mode first applies
-        const mc = document.querySelector('.main-container');
-        if (mc) {
-            new MutationObserver(() => {
-                if (mc.classList.contains('split-mode')) {
-                    sheet.style.setProperty('--sheet-height', currentSnap + 'vh');
-                }
-            }).observe(mc, { attributes: true, attributeFilter: ['class'] });
-        }
-    })();
 
     if (isMobile()) {
         applyMobileMode(localStorage.getItem('mobileViewMode') || 'map');
@@ -569,120 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
         priceSlider.noUiSlider.on('change', () => fetchListings());
     }
 
-    // --- Price Frequency Histogram (Airbnb-style) ---
-    const priceHistogramCanvas = document.getElementById('price-histogram');
-    const HIST_BUCKETS = 44;
-    let _histogramPrices = [];
-
-    async function fetchPriceHistogram() {
-        if (!priceHistogramCanvas) return;
-        try {
-            const search = getVal('search-text', 'search-text-mobile', 'dfb-search-text');
-            const type = getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type');
-            const location = getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location');
-            const beds = getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds');
-            const baths = getVal('filter-baths', 'filter-baths-mobile');
-            const listing_mode = currentMode;
-            // NOTE: deliberately no min_price / max_price — histogram shows full distribution.
-            const params = new URLSearchParams({ search, type, location, beds, baths, listing_mode });
-            const res = await fetch('api/get_apartments.php?' + params.toString());
-            if (!res.ok) return;
-            const data = await res.json();
-            if (!Array.isArray(data)) return;
-            _histogramPrices = data.map(p => Number(p.price)).filter(n => n > 0 && isFinite(n));
-            drawPriceHistogram();
-        } catch (e) { /* silent */ }
-    }
-
-    function drawPriceHistogram() {
-        if (!priceHistogramCanvas) return;
-        const currentMax = currentMode === 'Buy' ? BUY_MAX : RENT_MAX;
-        const dpr = window.devicePixelRatio || 1;
-        const rect = priceHistogramCanvas.getBoundingClientRect();
-        const W = rect.width, H = rect.height;
-        if (W <= 0 || H <= 0) return;
-        priceHistogramCanvas.width = Math.round(W * dpr);
-        priceHistogramCanvas.height = Math.round(H * dpr);
-        const ctx = priceHistogramCanvas.getContext('2d');
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, W, H);
-
-        if (_histogramPrices.length === 0) return;
-
-        const buckets = new Array(HIST_BUCKETS).fill(0);
-        const bucketSize = currentMax / HIST_BUCKETS;
-        _histogramPrices.forEach(p => {
-            let b = Math.floor(p / bucketSize);
-            if (b >= HIST_BUCKETS) b = HIST_BUCKETS - 1;
-            if (b < 0) b = 0;
-            buckets[b]++;
-        });
-        const maxCount = Math.max.apply(null, buckets);
-        if (maxCount === 0) return;
-
-        // Current selected range (so bars outside go grey)
-        let selMin = 0, selMax = currentMax;
-        if (priceSlider && priceSlider.noUiSlider) {
-            const vals = priceSlider.noUiSlider.get();
-            selMin = Number(vals[0]);
-            selMax = Number(vals[1]);
-        }
-
-        const barGap = 2;
-        const barW = Math.max(1, (W - (HIST_BUCKETS - 1) * barGap) / HIST_BUCKETS);
-        const cssPrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-        const activeColor = cssPrimary || '#e91e63';
-        const inactiveColor = 'rgba(120,120,130,0.28)';
-
-        for (let i = 0; i < HIST_BUCKETS; i++) {
-            const count = buckets[i];
-            // Soft power scaling so no single tall bar dominates
-            const norm = Math.pow(count, 0.7) / Math.pow(maxCount, 0.7);
-            const h = count > 0 ? Math.max(2, norm * (H - 4)) : 0;
-            const x = i * (barW + barGap);
-            const y = H - h;
-            const bStart = i * bucketSize;
-            const bEnd = (i + 1) * bucketSize;
-            const inRange = bEnd >= selMin && bStart <= selMax;
-            ctx.fillStyle = inRange ? activeColor : inactiveColor;
-            // Flat-top rectangles — no rounded corners
-            ctx.fillRect(x, y, barW, h);
-        }
-    }
-
-    // Re-tint bars live while the slider moves
-    if (priceSlider && priceSlider.noUiSlider) {
-        priceSlider.noUiSlider.on('update', drawPriceHistogram);
-    }
-    // Redraw on resize / when the filter modal opens (canvas may have had 0 width before)
-    window.addEventListener('resize', drawPriceHistogram);
-    let _histogramLoaded = false;
-    const filtersModalEl = document.getElementById('filters-modal');
-    if (filtersModalEl) {
-        new MutationObserver(() => {
-            if (filtersModalEl.classList.contains('active')) {
-                // Lazy fetch the histogram data the first time the modal is opened
-                if (!_histogramLoaded) {
-                    _histogramLoaded = true;
-                    fetchPriceHistogram();
-                }
-                setTimeout(drawPriceHistogram, 60);
-            }
-        }).observe(filtersModalEl, { attributes: true, attributeFilter: ['class'] });
-    }
-    // Desktop (no filter modal) — fetch lazily after the heavy initial work settles
-    if (!filtersModalEl || window.matchMedia('(min-width: 769px)').matches) {
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
-                if (!_histogramLoaded) { _histogramLoaded = true; fetchPriceHistogram(); }
-            }, { timeout: 4000 });
-        } else {
-            setTimeout(() => {
-                if (!_histogramLoaded) { _histogramLoaded = true; fetchPriceHistogram(); }
-            }, 2500);
-        }
-    }
-
     // --- Mobile Filter Modal ---
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
     const filtersModal = document.getElementById('filters-modal');
@@ -702,8 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('mode-active', b.dataset.mode === currentMode));
             updatePriceUI(currentMode); // Update slider and selects
             fetchListings();
-            // Only refire histogram if user has already opened it once — avoids extra request on mobile
-            if (typeof fetchPriceHistogram === 'function' && _histogramLoaded) fetchPriceHistogram();
         });
     });
 
@@ -886,22 +464,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset retry flag on success
             _fetchRetried = false;
 
-            // Apply draw-polygon filter if active
-            const poly = window._drawFilterPolygon;
-            const filteredData = poly && typeof turf !== 'undefined'
-                ? data.filter(p => {
-                    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
-                    if (isNaN(lat) || isNaN(lng)) return false;
-                    return turf.booleanPointInPolygon(turf.point([lng, lat]), poly);
-                })
-                : data;
+            // Update listings count displays (desktop filter bar + mobile hamburger drawer)
+            const _count = data.length;
+            const _dfbCount = document.getElementById('dfb-listings-count');
+            if (_dfbCount) _dfbCount.textContent = _count + (_count === 1 ? ' listing' : ' listings');
+            const _drawerCount = document.getElementById('t-drawer-listings-count-num');
+            if (_drawerCount) _drawerCount.textContent = _count;
 
             if (grid) {
                 grid.innerHTML = '';
-                if (filteredData.length === 0) {
-                    grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">' + (poly ? 'No properties found in drawn area.' : 'No properties match your search.') + '</p>';
+                if (data.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:span 2;padding:2rem;">No properties match your search.</p>';
                 } else {
-                    filteredData.forEach(prop => {
+                    data.forEach(prop => {
                         const card = document.createElement('div');
                         card.className = 'property-card';
 
@@ -993,9 +568,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Map pins are now handled by lazy/viewport-aware fetchMapPins().
-            // Trigger a pin refresh whenever filters change.
-            if (typeof fetchMapPins === 'function') fetchMapPins(true);
+            // Map markers
+
+            if (mapElement && markersLayer) {
+                markersLayer.clearLayers();
+                data.forEach(prop => {
+                    const priceIcon = L.divIcon({ className: 'custom-price-marker-wrapper', html: '<div class="price-marker-label">Rs. ' + escapeHTML(formatPriceShort(prop.price)) + '</div>', iconSize: [80, 24], iconAnchor: [40, 24] });
+                    const marker = L.marker([prop.lat, prop.lng], { icon: priceIcon }).addTo(markersLayer);
+                    let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
+                    try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch (e) { }
+                    marker.bindPopup('<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'"><img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;"><h4 style="margin:0;font-size:1rem;">' + prop.title + '</h4><p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(prop.price) + '</p><span style="font-size:0.8rem;color:var(--text-secondary);">' + prop.type + ' | ' + prop.bedrooms + ' Bed | ' + prop.baths + ' Bath</span><div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div></div>', { closeButton: true, minWidth: 220 });
+                });
+            }
         } catch (e) {
             console.error('Fetch error:', e);
             if (!_fetchRetried) {
@@ -1013,172 +597,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (str === null || str === undefined) return '';
         return new Option(str).innerHTML;
     }
-
-    // ============================================================
-    //  LAZY MAP PIN LOADING (viewport + zoom aware)
-    // ============================================================
-    // - Fetches only pins inside current map bounds (with 20% buffer)
-    // - Server-side LIMIT scales with zoom (sparser at world view, denser zoomed in)
-    // - Pin cache: existing visible pins are kept, only new ones added
-    // - AbortController kills in-flight requests on rapid pan/zoom
-    // - Debounced 350ms after moveend / zoomend
-    const _pinCache = new Map();         // id -> { marker, lat, lng }
-    let _pinsAbortCtrl = null;
-    let _pinsDebounceTimer = null;
-    let _lastFetchedKey = '';
-    // Lazy mode toggle — set automatically based on X-Total-Count from server.
-    // When false (small dataset): no bbox, no zoom limit, no refetch on pan/zoom.
-    const LAZY_THRESHOLD = 500;
-    let _lazyEnabled = null;             // null = unknown, true = use bbox, false = load all once
-
-    function _bufferedBounds() {
-        if (!map) return null;
-        const b = map.getBounds();
-        const sw = b.getSouthWest(), ne = b.getNorthEast();
-        const latPad = (ne.lat - sw.lat) * 0.2;
-        const lngPad = (ne.lng - sw.lng) * 0.2;
-        return {
-            minLat: sw.lat - latPad,
-            maxLat: ne.lat + latPad,
-            minLng: sw.lng - lngPad,
-            maxLng: ne.lng + lngPad,
-        };
-    }
-
-    async function fetchMapPins(force) {
-        if (!mapElement || !markersLayer || !map) return;
-        const bb = _bufferedBounds();
-        if (!bb) return;
-        const z = Math.round(map.getZoom());
-
-        // Skip if viewport hasn't meaningfully changed and not forced
-        const key = [
-            bb.minLat.toFixed(2), bb.maxLat.toFixed(2),
-            bb.minLng.toFixed(2), bb.maxLng.toFixed(2),
-            z, currentMode,
-            (minPriceInput?.value || ''), (maxPriceInput?.value || ''),
-            getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type'),
-            getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location'),
-            getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds'),
-            getVal('filter-baths', 'filter-baths-mobile'),
-            getVal('search-text', 'search-text-mobile', 'dfb-search-text'),
-        ].join('|');
-        if (!force && key === _lastFetchedKey) return;
-        _lastFetchedKey = key;
-
-        // Cancel any in-flight request
-        if (_pinsAbortCtrl) { try { _pinsAbortCtrl.abort(); } catch (e) {} }
-        _pinsAbortCtrl = new AbortController();
-
-        const baseParams = {
-            search: getVal('search-text', 'search-text-mobile', 'dfb-search-text'),
-            type: getVal('filter-type', 'filter-type-mobile', 'dfb-filter-type'),
-            location: getVal('filter-location', 'filter-location-mobile', 'dfb-filter-location'),
-            beds: getVal('filter-beds', 'filter-beds-mobile', 'dfb-filter-beds'),
-            baths: getVal('filter-baths', 'filter-baths-mobile'),
-            min_price: minPriceInput?.value || '',
-            max_price: maxPriceInput?.value || '',
-            listing_mode: currentMode,
-        };
-        // Only attach bbox + zoom when lazy mode is on (or unknown — let server tell us count)
-        if (_lazyEnabled !== false) {
-            baseParams.bbox = [bb.minLng, bb.minLat, bb.maxLng, bb.maxLat].join(',');
-            baseParams.zoom = z;
-        }
-        const params = new URLSearchParams(baseParams);
-
-        try {
-            const res = await fetch('api/get_apartments.php?' + params.toString(), { signal: _pinsAbortCtrl.signal });
-            if (!res.ok) return;
-
-            // Read total count → decide if lazy mode is needed
-            const totalHdr = res.headers.get('X-Total-Count');
-            if (totalHdr !== null) {
-                const total = parseInt(totalHdr, 10);
-                if (!isNaN(total)) {
-                    const wasEnabled = _lazyEnabled;
-                    _lazyEnabled = total > LAZY_THRESHOLD;
-                    // If we just discovered we don't need lazy mode, refetch WITHOUT bbox
-                    // so we get the full set in one go (only when transitioning).
-                    if (wasEnabled !== false && _lazyEnabled === false && (baseParams.bbox || force)) {
-                        // Small dataset — re-fire without bbox/zoom to load everything
-                        _lastFetchedKey = '';
-                        setTimeout(() => fetchMapPins(true), 0);
-                        return;
-                    }
-                }
-            }
-
-            const data = await res.json();
-            if (!Array.isArray(data)) return;
-
-            // Optional polygon filter
-            const poly = window._drawFilterPolygon;
-            const props = poly && typeof turf !== 'undefined'
-                ? data.filter(p => {
-                    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
-                    if (isNaN(lat) || isNaN(lng)) return false;
-                    return turf.booleanPointInPolygon(turf.point([lng, lat]), poly);
-                })
-                : data;
-
-            // Diff: keep cached markers still in result, remove the rest, add new
-            const incomingIds = new Set(props.map(p => String(p.id)));
-            // Remove pins no longer in viewport / result
-            for (const [id, entry] of _pinCache) {
-                if (!incomingIds.has(id)) {
-                    markersLayer.removeLayer(entry.marker);
-                    _pinCache.delete(id);
-                }
-            }
-            // Add new pins
-            props.forEach(prop => {
-                const id = String(prop.id);
-                if (_pinCache.has(id)) return;
-                const lat = parseFloat(prop.lat), lng = parseFloat(prop.lng);
-                if (isNaN(lat) || isNaN(lng)) return;
-                const priceIcon = L.divIcon({
-                    className: 'custom-price-marker-wrapper',
-                    html: '<div class="price-marker-label">Rs.&nbsp;' + escapeHTML(formatPriceShort(prop.price)) + '</div>',
-                    iconSize: [1, 1],          // tiny anchor — actual pill uses CSS centering
-                    iconAnchor: [0, 0]
-                });
-                const marker = L.marker([lat, lng], { icon: priceIcon }).addTo(markersLayer);
-                let popupImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800';
-                try { const pi = JSON.parse(prop.images); if (pi && pi.length > 0) popupImage = pi[0]; } catch (e) {}
-                marker.bindPopup(
-                    '<div style="cursor:pointer;" onclick="window.location.href=\'apartment.php?id=' + prop.id + '\'">' +
-                    '<img src="' + popupImage + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.5rem;">' +
-                    '<h4 style="margin:0;font-size:1rem;">' + escapeHTML(prop.title) + '</h4>' +
-                    '<p style="margin:0;color:var(--primary);font-weight:bold;">Rs. ' + formatPriceShort(prop.price) + '</p>' +
-                    '<span style="font-size:0.8rem;color:var(--text-secondary);">' + escapeHTML(prop.type) + ' | ' + escapeHTML(prop.bedrooms) + ' Bed | ' + escapeHTML(prop.baths) + ' Bath</span>' +
-                    '<div style="margin-top:0.5rem;"><span style="color:var(--primary);font-size:0.85rem;font-weight:500;">View Details →</span></div>' +
-                    '</div>',
-                    { closeButton: true, minWidth: 220 }
-                );
-                _pinCache.set(id, { marker, lat, lng });
-            });
-        } catch (e) {
-            if (e.name !== 'AbortError') console.warn('fetchMapPins error:', e);
-        }
-    }
-
-    function _scheduleFetchMapPins() {
-        clearTimeout(_pinsDebounceTimer);
-        _pinsDebounceTimer = setTimeout(() => fetchMapPins(false), 350);
-    }
-
-    if (map) {
-        map.on('moveend zoomend', () => {
-            if (flyInRunning) return;
-            // Small dataset — pins are already all loaded, no need to refetch on pan/zoom
-            if (_lazyEnabled === false) return;
-            _scheduleFetchMapPins();
-        });
-    }
-    // Expose for debugging / external triggers
-    window.fetchMapPins = fetchMapPins;
-
     if (grid) fetchListings();
 
     // Desktop DFB controls

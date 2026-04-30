@@ -152,7 +152,14 @@
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="t-drawer-body">${linksHTML}</div>
+            <div class="t-drawer-body">
+                <div class="t-drawer-count" id="t-drawer-listings-count" aria-live="polite">
+                    <span class="t-nav-icon"><i class="fa-solid fa-list"></i></span>
+                    <span><strong id="t-drawer-listings-count-num">0</strong> listings displayed</span>
+                </div>
+                <div class="t-drawer-sep"></div>
+                ${linksHTML}
+            </div>
             <div class="t-drawer-foot">&copy; ${yr} MyHomeMyLand &mdash; All rights reserved.</div>`;
 
         document.body.appendChild(drawer);

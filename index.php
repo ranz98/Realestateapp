@@ -15,14 +15,11 @@
     <link rel="stylesheet" href="style.css?v=5.6">
     <link rel="stylesheet" href="terminal.css?v=5.6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <!-- Instant theme: prevent flash of wrong theme -->
     <script>try { if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) { }</script>
     <?php include 'get-theme.php'; ?>
@@ -124,14 +121,12 @@
             <div class="t-dfb-divider"></div>
             <button id="dfb-apply" class="btn-primary">Search</button>
             <button id="dfb-clear" class="btn-secondary">Clear</button>
+            <span id="dfb-listings-count" class="t-dfb-count" aria-live="polite">0 listings</span>
         </div>
     </div>
 
     <main class="main-container">
         <section class="listings-section" id="listings-section">
-            <div class="split-drag-handle" id="split-drag-handle" aria-label="Drag to resize listings panel">
-                <div class="split-drag-grip"></div>
-            </div>
             <div class="listings-scroll-container" id="listings-scroll-container">
                 <div class="listings-grid" id="listings-grid">
                     <p>Loading properties...</p>
@@ -140,62 +135,6 @@
         </section>
         <section class="map-section" id="map-section">
             <div id="map"></div>
-            <!-- Draw toolbar -->
-            <div id="draw-toolbar">
-                <button id="draw-btn" title="Draw area to filter properties">
-                    <i class="fa-solid fa-draw-polygon"></i> Draw Area
-                </button>
-                <button id="draw-close-btn" title="Close and finish shape" style="display:none;">
-                    <i class="fa-solid fa-check"></i> Complete Shape
-                </button>
-                <button id="draw-clear-btn" title="Clear drawn area" style="display:none;">
-                    <i class="fa-solid fa-xmark"></i> Clear
-                </button>
-            </div>
-
-            <!-- One-time Draw Onboarding Overlay -->
-            <div id="draw-onboard" aria-hidden="true">
-                <div class="draw-onboard-card">
-                    <button class="draw-onboard-close" id="draw-onboard-close" aria-label="Close">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                    <h3>Draw your search area</h3>
-                    <p class="draw-onboard-sub">Click points on the map to outline any shape. Close the loop to filter
-                        properties inside it.</p>
-
-                    <div class="draw-onboard-demo">
-                        <svg viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg">
-                            <!-- fake map dots (properties) -->
-                            <g class="do-dots">
-                                <circle cx="55" cy="40" r="4" />
-                                <circle cx="95" cy="60" r="4" />
-                                <circle cx="140" cy="50" r="4" />
-                                <circle cx="170" cy="85" r="4" />
-                                <circle cx="120" cy="95" r="4" />
-                                <circle cx="75" cy="105" r="4" />
-                                <circle cx="200" cy="45" r="4" />
-                                <circle cx="210" cy="115" r="4" />
-                                <circle cx="40" cy="80" r="4" />
-                            </g>
-                            <!-- drawn polygon -->
-                            <polygon class="do-poly" points="70,55 155,45 190,100 110,115 60,95" />
-                            <!-- animated cursor -->
-                            <g class="do-cursor">
-                                <circle r="6" class="do-cursor-dot" />
-                                <i></i>
-                            </g>
-                        </svg>
-                    </div>
-
-                    <ol class="draw-onboard-steps">
-
-                        <li><span>1</span> Click points around your area</li>
-                        <li><span>2</span> Click the first point to close</li>
-                    </ol>
-
-                    <button class="draw-onboard-got" id="draw-onboard-got">Got it — let's draw</button>
-                </div>
-            </div>
         </section>
     </main>
 
@@ -259,7 +198,16 @@
                 <option value="1000000">Rs.1M+</option>
             </select>
 
-
+            <!-- Quick suggestion chips -->
+            <div class="t-so-chips">
+                <span class="t-so-chips-label">Quick Search:</span>
+                <button class="t-chip" data-q="Colombo"><i class="fa-solid fa-location-dot"></i> Colombo</button>
+                <button class="t-chip" data-q="Apartment"><i class="fa-solid fa-building"></i> Apartment</button>
+                <button class="t-chip" data-q="House"><i class="fa-solid fa-house"></i> House</button>
+                <button class="t-chip" data-q="Villa"><i class="fa-solid fa-house-chimney-window"></i> Villa</button>
+                <button class="t-chip" data-q="Galle"><i class="fa-solid fa-location-dot"></i> Galle</button>
+                <button class="t-chip" data-q="Kandy"><i class="fa-solid fa-location-dot"></i> Kandy</button>
+            </div>
 
             <!-- Filters grid -->
             <div class="t-so-filters">
@@ -330,7 +278,6 @@
                 <div class="t-so-filter-group t-so-price-group">
                     <label>Price Range</label>
                     <div class="price-slider-container">
-                        <canvas id="price-histogram" class="price-histogram" aria-hidden="true"></canvas>
                         <div id="price-slider"></div>
                         <div id="price-range-display" class="price-display">Rs. 0 - Rs. 500k</div>
                     </div>
@@ -354,9 +301,6 @@
 
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" crossorigin=""></script>
-    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
     <script src="script.js?v=<?php echo time(); ?>"></script>
     <script src="terminal.js?v=<?php echo time(); ?>"></script>
