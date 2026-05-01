@@ -16,26 +16,11 @@ if (!$apt) {
     exit;
 }
 
-// Defer view-count writes until AFTER the response is sent so they never
-// block page render. Under PHP-FPM this returns to the client immediately;
-// elsewhere it falls back to register_shutdown_function which still runs
-// after output is flushed.
-$_apt_view_id      = $id;
-$_apt_view_user_id = $apt['user_id'];
-$_apt_record_views = function() use ($pdo, $_apt_view_id, $_apt_view_user_id) {
-    try {
-        $pdo->prepare("UPDATE apartments SET view_count = view_count + 1 WHERE id = ?")
-            ->execute([$_apt_view_id]);
-        $pdo->prepare("INSERT INTO daily_views (apartment_id, user_id, view_date, views) VALUES (?, ?, CURDATE(), 1) ON DUPLICATE KEY UPDATE views = views + 1")
-            ->execute([$_apt_view_id, $_apt_view_user_id]);
-    } catch (Throwable $e) { /* swallow — view counting is best-effort */ }
-};
-register_shutdown_function(function() use ($_apt_record_views) {
-    if (function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
-    }
-    $_apt_record_views();
-});
+$pdo->prepare("UPDATE apartments SET view_count = view_count + 1 WHERE id = ?")->execute([$id]);
+try {
+    $pdo->prepare("INSERT INTO daily_views (apartment_id, user_id, view_date, views) VALUES (?, ?, CURDATE(), 1) ON DUPLICATE KEY UPDATE views = views + 1")->execute([$id, $apt['user_id']]);
+} catch (Exception $e) {
+}
 
 $images = [];
 try {
@@ -2610,6 +2595,15 @@ $featureIcons = [
                                     style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
                                 <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">by
                                     bus</span>
+                                <!-- Peak Traffic (8 AM Sri Lanka) -->
+                                <i class="fa-solid fa-traffic-light"
+                                    style="color:#0ea5e9;font-size:0.78rem;justify-self:center;"></i>
+                                <strong id="dist-val-exp-peak"
+                                    style="font-size:0.78rem;color:#111;white-space:nowrap;"></strong>
+                                <strong id="dur-val-exp-peak"
+                                    style="font-size:0.78rem;color:#0ea5e9;white-space:nowrap;"></strong>
+                                <span style="font-size:0.68rem;color:#888;white-space:nowrap;text-align:right;">peak
+                                    traffic - 8.30 arrival<span style="font-size:0.6rem;opacity:0.75;"></span></span>
                             </div>
                         </div>
                         <div id="dist-error-exp" style="display:none;color:#ef4444;font-size:0.78rem;"></div>
@@ -2909,6 +2903,14 @@ $featureIcons = [
             function closeDrw() { drwBg.classList.remove('on'); drw.classList.remove('on'); document.body.style.overflow = ''; }
             if (drwBg) drwBg.addEventListener('click', closeDrw);
 
+            // Trigger the drawer when the mobile 'Offer' button is clicked
+            const mobOfferBtn = document.getElementById('mob-open');
+            if (mobOfferBtn) {
+                mobOfferBtn.addEventListener('click', (e) => {
+                    // If you want the drawer to open instead of an instant submit:
+                    openDrw();
+                });
+            }
             /* ═══ LOGIN PROMPT POPUP ═══ */
             const _isLoggedIn = <?= $isLoggedIn ? 'true' : 'false' ?>;
             const _loginRedirect = 'login.php?redirect=' + encodeURIComponent(window.location.href);
@@ -3160,6 +3162,17 @@ $featureIcons = [
                         document.body.style.overflow = '';
                     }, 300);
                 });
+
+                // Click on the blurred backdrop (outside the inner card) closes the lightbox
+                mapLb.addEventListener('click', e => {
+                    if (e.target === mapLb) {
+                        mapLb.style.opacity = '0';
+                        setTimeout(() => {
+                            mapLb.style.display = 'none';
+                            document.body.style.overflow = '';
+                        }, 300);
+                    }
+                });
             }
 
             /* Wire expanded map zoom buttons */
@@ -3194,6 +3207,19 @@ $featureIcons = [
                     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 };
 
+                // Returns next 8:00 AM Sri Lanka time (UTC+5:30) as a JS Date (always in the future)
+                const next8amSL = () => {
+                    const now = new Date();
+                    // Sri Lanka offset: UTC+5:30 = 330 minutes
+                    const slOffsetMs = 330 * 60 * 1000;
+                    const nowSL = new Date(now.getTime() + slOffsetMs);
+                    const target = new Date(nowSL);
+                    target.setUTCHours(8, 0, 0, 0); // 08:00 SL = 02:30 UTC
+                    if (target <= nowSL) target.setUTCDate(target.getUTCDate() + 1); // push to tomorrow if past 8am
+                    // Convert back to real UTC
+                    return new Date(target.getTime() - slOffsetMs);
+                };
+
                 // Helper: call Google Distance Matrix for one travel mode, returns {dist, dur} or null
                 const gmDist = (origin, dest, mode) => new Promise(resolve => {
                     const svc = new google.maps.DistanceMatrixService();
@@ -3207,6 +3233,28 @@ $featureIcons = [
                         const el = res.rows[0]?.elements[0];
                         if (!el || el.status !== 'OK') return resolve(null);
                         resolve({ dist: el.distance.value, dur: el.duration.value, distTxt: el.distance.text, durTxt: el.duration.text });
+                    });
+                });
+
+                // Peak traffic: driving at next 8 AM Sri Lanka time
+                const gmDistPeak = (origin, dest) => new Promise(resolve => {
+                    const svc = new google.maps.DistanceMatrixService();
+                    svc.getDistanceMatrix({
+                        origins: [origin],
+                        destinations: [dest],
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        unitSystem: google.maps.UnitSystem.METRIC,
+                        drivingOptions: {
+                            departureTime: next8amSL(),
+                            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+                        },
+                    }, (res, status) => {
+                        if (status !== 'OK') return resolve(null);
+                        const el = res.rows[0]?.elements[0];
+                        if (!el || el.status !== 'OK') return resolve(null);
+                        // duration_in_traffic gives traffic-aware time
+                        const dur = el.duration_in_traffic || el.duration;
+                        resolve({ dist: el.distance.value, dur: dur.value, distTxt: el.distance.text, durTxt: dur.text });
                     });
                 });
 
@@ -3234,11 +3282,12 @@ $featureIcons = [
                         if (straightKm > 100) throw new Error('Distance too far — location is over 100 km away.');
 
                         const dest = { lat, lng };
-                        // Fire all 3 modes in parallel via Google
-                        const [drive, walk, transit] = await Promise.all([
+                        // Fire all 4 modes in parallel via Google
+                        const [drive, walk, transit, peak] = await Promise.all([
                             gmDist(origin, dest, 'DRIVING'),
                             gmDist(origin, dest, 'WALKING'),
                             gmDist(origin, dest, 'TRANSIT'),
+                            gmDistPeak(origin, dest),
                         ]);
 
                         if (!drive && !walk && !transit) throw new Error('Location not found or no route available.');
@@ -3264,6 +3313,14 @@ $featureIcons = [
                             document.getElementById('dist-val-exp-transit').textContent = drive ? drive.distTxt : '—';
                             document.getElementById('dur-val-exp-transit').textContent = 'N/A';
                         }
+                        // Peak traffic at 8 AM Sri Lanka
+                        if (peak) {
+                            document.getElementById('dist-val-exp-peak').textContent = peak.distTxt;
+                            document.getElementById('dur-val-exp-peak').textContent = fmtSec(peak.dur);
+                        } else {
+                            document.getElementById('dist-val-exp-peak').textContent = '—';
+                            document.getElementById('dur-val-exp-peak').textContent = 'N/A';
+                        }
 
                         document.getElementById('dist-result-exp').style.display = 'block';
 
@@ -3274,6 +3331,8 @@ $featureIcons = [
                                 if (routeStates['exp']) routeStates['exp'].forEach(l => expandedMapObj.removeLayer(l));
                                 const routeLine = L.geoJSON(rd.routes[0].geometry, { style: { color: '#0ea5e9', weight: 5, opacity: 0.85 } }).addTo(expandedMapObj);
                                 routeStates['exp'] = [routeLine];
+                                // ← zoom map to show the full route
+                                expandedMapObj.fitBounds(routeLine.getBounds(), { padding: [40, 40], animate: true });
                             }
                         }
                     } catch (e) {
@@ -3286,6 +3345,7 @@ $featureIcons = [
                 };
                 distBtnExp.addEventListener('click', doCalcExp);
                 distInputExp.addEventListener('keydown', e => { if (e.key === 'Enter') doCalcExp(); });
+
                 if (distClearExp) {
                     distClearExp.addEventListener('click', () => {
                         document.getElementById('dist-result-exp').style.display = 'none';
