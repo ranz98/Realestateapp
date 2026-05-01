@@ -1731,3 +1731,92 @@ textarea:focus {
     color: var(--text-primary);
     font-weight: 700;
 }
+
+/* ═══ Draw Toolbar ═══ */
+#draw-toolbar {
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 600;
+    display: flex; gap: 0.4rem;
+    pointer-events: auto;
+}
+#draw-toolbar button {
+    padding: 0.5rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-glass);
+    background: var(--bg-card, #fff);
+    color: var(--text-primary);
+    font-size: 0.85rem; font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+#draw-toolbar button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); }
+#draw-toolbar #draw-btn       { background: var(--primary); color: #fff; border-color: transparent; }
+#draw-toolbar #draw-clear-btn { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+
+/* ═══ Draw Onboarding Overlay ═══ */
+#draw-onboard {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none; align-items: center; justify-content: center;
+    z-index: 800; padding: 1rem;
+}
+#draw-onboard.is-visible { display: flex; }
+.draw-onboard-card {
+    background: var(--bg-card, #fff);
+    border-radius: 16px;
+    padding: 1.5rem;
+    max-width: 360px; width: 100%;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    color: var(--text-primary);
+}
+.draw-onboard-card h3 { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.draw-onboard-sub    { margin: 0 0 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+.draw-onboard-close {
+    position: absolute; top: 0.6rem; right: 0.6rem;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-secondary); font-size: 1.1rem;
+    width: 32px; height: 32px; border-radius: 50%;
+}
+.draw-onboard-close:hover { background: var(--bg-main); }
+.draw-onboard-demo svg { width: 100%; height: 130px; display: block; margin: 0.4rem 0; }
+.draw-onboard-demo .do-dots circle { fill: var(--text-secondary); opacity: 0.4; }
+.draw-onboard-demo .do-poly {
+    fill: rgba(37, 99, 235, 0.15);
+    stroke: var(--primary); stroke-width: 2; stroke-dasharray: 4 4;
+    animation: do-dash 1.6s linear infinite;
+}
+.draw-onboard-demo .do-cursor-dot { fill: var(--primary); }
+@keyframes do-dash { to { stroke-dashoffset: -16; } }
+.draw-onboard-steps { list-style: none; padding: 0; margin: 0.6rem 0 1rem; }
+.draw-onboard-steps li {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.35rem 0; font-size: 0.9rem;
+}
+.draw-onboard-steps li span {
+    flex: 0 0 24px; height: 24px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700;
+}
+.draw-onboard-got {
+    width: 100%; padding: 0.7rem 1rem; border: none; border-radius: 10px;
+    background: var(--primary); color: #fff; font-weight: 600; cursor: pointer;
+    font-size: 0.95rem;
+}
+
+/* ═══ Price histogram (sparkline behind the slider) ═══ */
+.price-slider-container { position: relative; }
+.price-histogram {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 22px;
+    width: 100%;
+    height: 36px;
+    pointer-events: none;
+    opacity: 0.85;
+}

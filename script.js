@@ -737,4 +737,210 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearBtn) clearBtn.addEventListener('click', clearAll);
     if (clearMob) clearMob.addEventListener('click', clearAll);
     if (clearDfb) clearDfb.addEventListener('click', clearAll);
+
+    /* ════════════════════════════════════════════════════════════════
+       DRAW-SHAPE FILTER  (Leaflet.Draw + Turf)
+       Lets the user outline a polygon on the map. Listings and map
+       markers are then filtered to points inside that polygon.
+       ════════════════════════════════════════════════════════════════ */
+    let drawnLayer = null;     // L.Polygon currently displayed
+    let drawnGeoJSON = null;   // turf-compatible Feature<Polygon>
+    let drawHandler = null;    // active L.Draw.Polygon instance
+    let drawOnboardSeen = false;
+    try { drawOnboardSeen = localStorage.getItem('drawOnboardSeen') === '1'; } catch (e) {}
+
+    function buildBboxFromPolygon(latlngs) {
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+        latlngs.forEach(p => {
+            if (p.lat < minLat) minLat = p.lat;
+            if (p.lat > maxLat) maxLat = p.lat;
+            if (p.lng < minLng) minLng = p.lng;
+            if (p.lng > maxLng) maxLng = p.lng;
+        });
+        return { minLat, maxLat, minLng, maxLng };
+    }
+
+    // Inject bbox + polygon into URLSearchParams (consumed by both API endpoints).
+    function applyPolygonParams(params) {
+        if (!drawnGeoJSON) return params;
+        const coords = drawnGeoJSON.geometry.coordinates[0]; // [[lng,lat], ...]
+        const latlngs = coords.map(c => ({ lng: c[0], lat: c[1] }));
+        const bb = buildBboxFromPolygon(latlngs);
+        params.set('min_lat', bb.minLat.toFixed(6));
+        params.set('max_lat', bb.maxLat.toFixed(6));
+        params.set('min_lng', bb.minLng.toFixed(6));
+        params.set('max_lng', bb.maxLng.toFixed(6));
+        return params;
+    }
+
+    // Patch the existing buildFilterParams to include polygon bbox.
+    // (We re-define it here so the rest of the code keeps working unchanged.)
+    const _origBuildFilterParams = buildFilterParams;
+    buildFilterParams = function() {
+        return applyPolygonParams(_origBuildFilterParams());
+    };
+
+    function setupDrawControl() {
+        if (!map || typeof L === 'undefined' || !L.Draw) return;
+        const drawBtn      = document.getElementById('draw-btn');
+        const drawCloseBtn = document.getElementById('draw-close-btn');
+        const drawClearBtn = document.getElementById('draw-clear-btn');
+        const onboard      = document.getElementById('draw-onboard');
+        const onboardClose = document.getElementById('draw-onboard-close');
+        const onboardGot   = document.getElementById('draw-onboard-got');
+        if (!drawBtn) return;
+
+        function showOnboard() {
+            if (!onboard) return;
+            onboard.classList.add('is-visible');
+            onboard.setAttribute('aria-hidden', 'false');
+        }
+        function hideOnboard() {
+            if (!onboard) return;
+            onboard.classList.remove('is-visible');
+            onboard.setAttribute('aria-hidden', 'true');
+            try { localStorage.setItem('drawOnboardSeen', '1'); } catch (e) {}
+            drawOnboardSeen = true;
+        }
+        if (onboardClose) onboardClose.addEventListener('click', hideOnboard);
+        if (onboardGot)   onboardGot.addEventListener('click', () => { hideOnboard(); startDraw(); });
+
+        function startDraw() {
+            clearDrawing();
+            drawHandler = new L.Draw.Polygon(map, {
+                allowIntersection: false,
+                showArea: false,
+                shapeOptions: { color: '#2563eb', weight: 3, fillOpacity: 0.12 },
+            });
+            drawHandler.enable();
+            drawBtn.style.display      = 'none';
+            drawCloseBtn.style.display = '';
+            drawClearBtn.style.display = '';
+        }
+
+        function finishDraw() {
+            if (drawHandler) drawHandler.completeShape();
+        }
+
+        function clearDrawing() {
+            if (drawHandler) { try { drawHandler.disable(); } catch (e) {} drawHandler = null; }
+            if (drawnLayer) { map.removeLayer(drawnLayer); drawnLayer = null; }
+            drawnGeoJSON = null;
+            drawBtn.style.display      = '';
+            drawCloseBtn.style.display = 'none';
+            drawClearBtn.style.display = 'none';
+        }
+
+        drawBtn.addEventListener('click', () => {
+            if (drawOnboardSeen) startDraw(); else showOnboard();
+        });
+        drawCloseBtn.addEventListener('click', finishDraw);
+        drawClearBtn.addEventListener('click', () => {
+            clearDrawing();
+            fetchListings(true);
+        });
+
+        map.on(L.Draw.Event.CREATED, (e) => {
+            drawnLayer = e.layer;
+            drawnLayer.addTo(map);
+            drawnGeoJSON = drawnLayer.toGeoJSON();
+            drawHandler = null;
+            drawBtn.style.display      = '';   // allow re-draw
+            drawCloseBtn.style.display = 'none';
+            // Keep clear visible
+            drawClearBtn.style.display = '';
+            // Refresh list + markers using the polygon's bbox (server) +
+            // exact polygon refinement happens for markers client-side.
+            fetchListings(true);
+        });
+    }
+
+    // Wrap fetchMapMarkers so markers outside the polygon are filtered out client-side.
+    if (typeof fetchMapMarkers === 'function') {
+        const _origFetchMapMarkers = fetchMapMarkers;
+        fetchMapMarkers = async function() {
+            await _origFetchMapMarkers();
+            if (drawnGeoJSON && markersLayer && typeof turf !== 'undefined') {
+                const layers = [];
+                markersLayer.eachLayer(l => layers.push(l));
+                layers.forEach(l => {
+                    const ll = l.getLatLng();
+                    const pt = turf.point([ll.lng, ll.lat]);
+                    if (!turf.booleanPointInPolygon(pt, drawnGeoJSON)) {
+                        markersLayer.removeLayer(l);
+                    }
+                });
+            }
+        };
+    }
+
+    setupDrawControl();
+
+    /* ════════════════════════════════════════════════════════════════
+       PRICE HISTOGRAM  — sparkline behind the price slider
+       ════════════════════════════════════════════════════════════════ */
+    async function renderPriceHistogram() {
+        const canvas = document.getElementById('price-histogram');
+        if (!canvas) return;
+        try {
+            const params = _origBuildFilterParams();
+            params.delete('min_price');
+            params.delete('max_price');
+            const res = await fetch('api/get_price_histogram.php?' + params.toString());
+            if (!res.ok) return;
+            const { buckets, max } = await res.json();
+            if (!Array.isArray(buckets)) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.clientWidth, h = canvas.clientHeight;
+            canvas.width = w * dpr; canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+            const bw = w / buckets.length;
+            const peak = max || Math.max(1, ...buckets);
+            const accent = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
+            ctx.fillStyle = accent + '55';
+            buckets.forEach((c, i) => {
+                const bh = (c / peak) * (h - 4);
+                ctx.fillRect(i * bw + 1, h - bh, Math.max(1, bw - 2), bh);
+            });
+        } catch (e) { /* ignore */ }
+    }
+    // Refresh histogram whenever list re-fetches (price-independent).
+    if (typeof fetchListings === 'function') {
+        const _origFetchListings = fetchListings;
+        fetchListings = async function(reset) {
+            await _origFetchListings(reset);
+            if (reset !== false) renderPriceHistogram();
+        };
+        renderPriceHistogram();
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       MOBILE VIEW-TOGGLE DRAG  — swipe the pill to switch list/split/map
+       ════════════════════════════════════════════════════════════════ */
+    (function setupMobileViewDrag() {
+        const pill = document.getElementById('mobile-view-toggle');
+        if (!pill) return;
+        const modes = ['list', 'split', 'map'];
+        function activeIdx() {
+            const a = pill.querySelector('.mvt-active');
+            const m = a && a.dataset.mode;
+            return Math.max(0, modes.indexOf(m));
+        }
+        let startX = 0, startY = 0, dragging = false;
+        pill.addEventListener('touchstart', e => {
+            const t = e.touches[0]; startX = t.clientX; startY = t.clientY; dragging = true;
+        }, { passive: true });
+        pill.addEventListener('touchend', e => {
+            if (!dragging) return; dragging = false;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - startX, dy = t.clientY - startY;
+            if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return; // ignore taps & vertical
+            let idx = activeIdx() + (dx < 0 ? 1 : -1);
+            idx = Math.max(0, Math.min(modes.length - 1, idx));
+            const btn = pill.querySelector(`.mvt-btn[data-mode="${modes[idx]}"]`);
+            if (btn) btn.click();
+        }, { passive: true });
+    })();
 });

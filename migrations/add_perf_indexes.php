@@ -54,4 +54,9 @@ addIndex($pdo,
     "ALTER TABLE apartments ADD FULLTEXT INDEX ft_search (title, address, description)",
     'apartments', 'ft_search');
 
+// Composite index for the draw-shape bbox filter.
+addIndex($pdo,
+    "ALTER TABLE apartments ADD INDEX idx_lat_lng (lat, lng)",
+    'apartments', 'idx_lat_lng');
+
 echo "\nDone.\n";

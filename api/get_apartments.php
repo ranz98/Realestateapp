@@ -92,6 +92,16 @@ if (isset($_GET['listing_mode']) && in_array($_GET['listing_mode'], ['Buy', 'Ren
     $params[] = $_GET['listing_mode'];
 }
 
+// Bounding-box filter (used by the draw-shape feature for a fast SQL prefilter;
+// exact point-in-polygon refinement happens on the client with Turf).
+foreach (['min_lat' => 'lat >= ?', 'max_lat' => 'lat <= ?',
+          'min_lng' => 'lng >= ?', 'max_lng' => 'lng <= ?'] as $k => $cond) {
+    if (isset($_GET[$k]) && is_numeric($_GET[$k])) {
+        $where[] = $cond;
+        $params[] = (float) $_GET[$k];
+    }
+}
+
 $whereSql = implode(' AND ', $where);
 
 // --- Sort (index-friendly, no ORDER BY RAND) ---

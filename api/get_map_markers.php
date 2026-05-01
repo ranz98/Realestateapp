@@ -56,6 +56,13 @@ if (isset($_GET['listing_mode']) && in_array($_GET['listing_mode'], ['Buy', 'Ren
     $where[] = "listing_mode = ?";
     $params[] = $_GET['listing_mode'];
 }
+foreach (['min_lat' => 'lat >= ?', 'max_lat' => 'lat <= ?',
+          'min_lng' => 'lng >= ?', 'max_lng' => 'lng <= ?'] as $k => $cond) {
+    if (isset($_GET[$k]) && is_numeric($_GET[$k])) {
+        $where[] = $cond;
+        $params[] = (float) $_GET[$k];
+    }
+}
 
 $whereSql = implode(' AND ', $where);
 
