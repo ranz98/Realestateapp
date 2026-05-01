@@ -924,12 +924,17 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
 
     .main-container.split-mode {
         flex-direction: column;
+        position: relative;
+    }
+
+    .main-container.split-mode {
+        --split-pct: 50;
     }
 
     .main-container.split-mode .map-section {
         display: block !important;
         order: -1;
-        height: 40vh !important;
+        height: calc(var(--split-pct) * 1vh) !important;
         flex: none;
         border-bottom: 2px solid var(--border-glass);
     }
@@ -938,6 +943,38 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         display: block !important;
         flex: 1;
         overflow-y: auto;
+    }
+
+    /* Draggable grabber bar between map and list (mobile split-mode only). */
+    #split-grabber { display: none; }
+    .main-container.split-mode #split-grabber {
+        display: block;
+        position: absolute;
+        left: 0; right: 0;
+        top: calc(var(--split-pct) * 1vh - 14px);
+        height: 28px;
+        z-index: 1500;
+        cursor: ns-resize;
+        touch-action: none;
+        background: transparent;
+    }
+    .split-grabber-handle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 56px; height: 5px;
+        border-radius: 999px;
+        background: var(--text-secondary);
+        opacity: 0.45;
+        transition: opacity 0.15s ease, width 0.15s ease;
+        pointer-events: none;
+    }
+    #split-grabber:hover .split-grabber-handle,
+    #split-grabber.is-dragging .split-grabber-handle {
+        opacity: 0.85;
+        width: 72px;
+        background: var(--primary);
     }
 
     body.mobile-map-only .site-footer {
