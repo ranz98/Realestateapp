@@ -129,9 +129,6 @@
 
     <main class="main-container">
         <section class="listings-section" id="listings-section">
-            <div class="split-drag-handle" id="split-drag-handle" aria-label="Drag to resize listings panel">
-                <div class="split-drag-grip"></div>
-            </div>
             <div class="listings-scroll-container" id="listings-scroll-container">
                 <div class="listings-grid" id="listings-grid">
                     <p>Loading properties...</p>
