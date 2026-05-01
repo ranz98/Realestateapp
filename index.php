@@ -16,13 +16,13 @@
     <link rel="stylesheet" href="terminal.css?v=5.6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <!-- Instant theme: prevent flash of wrong theme -->
     <script>try { if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) { }</script>
     <?php include 'get-theme.php'; ?>
@@ -124,12 +124,14 @@
             <div class="t-dfb-divider"></div>
             <button id="dfb-apply" class="btn-primary">Search</button>
             <button id="dfb-clear" class="btn-secondary">Clear</button>
-            <span id="dfb-listings-count" class="t-dfb-count" aria-live="polite">0 listings</span>
         </div>
     </div>
 
     <main class="main-container">
         <section class="listings-section" id="listings-section">
+            <div class="split-drag-handle" id="split-drag-handle" aria-label="Drag to resize listings panel">
+                <div class="split-drag-grip"></div>
+            </div>
             <div class="listings-scroll-container" id="listings-scroll-container">
                 <div class="listings-grid" id="listings-grid">
                     <p>Loading properties...</p>
@@ -163,6 +165,7 @@
 
                     <div class="draw-onboard-demo">
                         <svg viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg">
+                            <!-- fake map dots (properties) -->
                             <g class="do-dots">
                                 <circle cx="55" cy="40" r="4" />
                                 <circle cx="95" cy="60" r="4" />
@@ -174,14 +177,18 @@
                                 <circle cx="210" cy="115" r="4" />
                                 <circle cx="40" cy="80" r="4" />
                             </g>
+                            <!-- drawn polygon -->
                             <polygon class="do-poly" points="70,55 155,45 190,100 110,115 60,95" />
+                            <!-- animated cursor -->
                             <g class="do-cursor">
                                 <circle r="6" class="do-cursor-dot" />
+                                <i></i>
                             </g>
                         </svg>
                     </div>
 
                     <ol class="draw-onboard-steps">
+
                         <li><span>1</span> Click points around your area</li>
                         <li><span>2</span> Click the first point to close</li>
                     </ol>
@@ -251,6 +258,8 @@
                 <option value="750000">Rs.750k</option>
                 <option value="1000000">Rs.1M+</option>
             </select>
+
+
 
             <!-- Filters grid -->
             <div class="t-so-filters">

@@ -7,158 +7,134 @@ ob_start();
 if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 require_once '../db.php';
 
-/**
- * Slim column set for listing cards. Description and other heavy fields are
- * fetched only on the detail page (apartment.php) — at 10k rows this trims
- * the JSON payload by ~70%.
- */
-$cardCols = "id, title, address, type, bedrooms, baths, price, listing_mode, "
-          . "view_count, size_perches, images, lat, lng, created_at";
-
-$where  = ["status = 'approved'"];
+$query = "SELECT * FROM apartments WHERE status = 'approved'";
 $params = [];
 
-// --- Search: prefer FULLTEXT (added by migration), fall back to LIKE ---
-$searchRaw = isset($_GET['search']) ? trim($_GET['search']) : '';
-$useFulltext = false;
-if ($searchRaw !== '') {
-    // Detect FULLTEXT index once per request and cache for this connection.
-    static $hasFt = null;
-    if ($hasFt === null) {
-        try {
-            $r = $pdo->query("SHOW INDEX FROM apartments WHERE Key_name = 'ft_search'")->fetch();
-            $hasFt = (bool) $r;
-        } catch (Throwable $e) { $hasFt = false; }
-    }
-    if ($hasFt && mb_strlen($searchRaw) >= 3) {
-        // Boolean mode + prefix wildcard so partial words match.
-        $tokens = preg_split('/\s+/', $searchRaw, -1, PREG_SPLIT_NO_EMPTY);
-        $tokens = array_map(fn($t) => '+' . preg_replace('/[^\p{L}\p{N}_]/u', '', $t) . '*', $tokens);
-        $boolean = implode(' ', array_filter($tokens));
-        if ($boolean !== '') {
-            $where[] = "MATCH(title, address, description) AGAINST (? IN BOOLEAN MODE)";
-            $params[] = $boolean;
-            $useFulltext = true;
-        }
-    }
-    if (!$useFulltext) {
-        $like = '%' . $searchRaw . '%';
-        $where[] = "(title LIKE ? OR address LIKE ?)";
-        $params[] = $like;
-        $params[] = $like;
-    }
+if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
+    $search = '%' . trim($_GET['search']) . '%';
+    $query .= " AND (title LIKE ? OR description LIKE ? OR address LIKE ?)";
+    $params[] = $search;
+    $params[] = $search;
+    $params[] = $search;
 }
 
-if (isset($_GET['type']) && $_GET['type'] !== 'All' && $_GET['type'] !== '') {
-    $where[] = "type = ?";
+if (isset($_GET['type']) && $_GET['type'] !== 'All') {
+    $query .= " AND type = ?";
     $params[] = $_GET['type'];
 }
 
-if (isset($_GET['location']) && $_GET['location'] !== 'All' && $_GET['location'] !== '') {
-    $where[] = "address LIKE ?";
+if (isset($_GET['location']) && $_GET['location'] !== 'All') {
+    $query .= " AND address LIKE ?";
     $params[] = '%' . trim($_GET['location']) . '%';
 }
 
-if (isset($_GET['beds']) && $_GET['beds'] !== 'All' && $_GET['beds'] !== '') {
+if (isset($_GET['beds']) && $_GET['beds'] !== 'All') {
     if ($_GET['beds'] === '3+') {
-        $where[] = "(bedrooms = '3' OR bedrooms = '3+' OR bedrooms = '4' OR bedrooms = '5' OR bedrooms = '5+')";
+        $query .= " AND (bedrooms = '3' OR bedrooms = '3+')";
     } else {
-        $where[] = "bedrooms = ?";
+        $query .= " AND bedrooms = ?";
         $params[] = $_GET['beds'];
     }
 }
 
-if (isset($_GET['baths']) && $_GET['baths'] !== 'All' && $_GET['baths'] !== '') {
+if (isset($_GET['baths']) && $_GET['baths'] !== 'All') {
     if ($_GET['baths'] === '3+') {
-        $where[] = "baths >= 3";
+        $query .= " AND baths >= 3";
     } else {
-        $where[] = "baths = ?";
+        $query .= " AND baths = ?";
         $params[] = $_GET['baths'];
     }
 }
 
 if (isset($_GET['min_price']) && is_numeric($_GET['min_price']) && $_GET['min_price'] > 0) {
-    $where[] = "price >= ?";
-    $params[] = (float) $_GET['min_price'];
+    $query .= " AND price >= ?";
+    $params[] = $_GET['min_price'];
 }
 
 if (isset($_GET['max_price']) && is_numeric($_GET['max_price']) && $_GET['max_price'] > 0) {
-    $where[] = "price <= ?";
-    $params[] = (float) $_GET['max_price'];
+    $query .= " AND price <= ?";
+    $params[] = $_GET['max_price'];
 }
 
-if (isset($_GET['listing_mode']) && in_array($_GET['listing_mode'], ['Buy', 'Rent'], true)) {
-    $where[] = "listing_mode = ?";
+if (isset($_GET['listing_mode']) && in_array($_GET['listing_mode'], ['Buy', 'Rent'])) {
+    $query .= " AND listing_mode = ?";
     $params[] = $_GET['listing_mode'];
 }
 
-// Bounding-box filter (used by the draw-shape feature for a fast SQL prefilter;
-// exact point-in-polygon refinement happens on the client with Turf).
-foreach (['min_lat' => 'lat >= ?', 'max_lat' => 'lat <= ?',
-          'min_lng' => 'lng >= ?', 'max_lng' => 'lng <= ?'] as $k => $cond) {
-    if (isset($_GET[$k]) && is_numeric($_GET[$k])) {
-        $where[] = $cond;
-        $params[] = (float) $_GET[$k];
+// --- Total count BEFORE bbox/limit (so frontend can decide if lazy mode is needed) ---
+// We splice the SELECT * into SELECT COUNT(*) and run with the current params (no bbox / limit yet).
+$countQuery = 'SELECT COUNT(*) ' . substr($query, strlen('SELECT *'));
+$totalCount = null;
+try {
+    $cstmt = $pdo->prepare($countQuery);
+    $cstmt->execute($params);
+    $totalCount = (int)$cstmt->fetchColumn();
+    header('X-Total-Count: ' . $totalCount);
+    header('Access-Control-Expose-Headers: X-Total-Count');
+} catch (PDOException $e) { /* non-fatal — continue */ }
+
+// --- Bbox filtering for lazy map loading ---
+// Format: bbox=minLng,minLat,maxLng,maxLat
+if (isset($_GET['bbox']) && !empty($_GET['bbox'])) {
+    $parts = explode(',', $_GET['bbox']);
+    if (count($parts) === 4 && array_filter($parts, 'is_numeric') === $parts) {
+        $minLng = (float)$parts[0]; $minLat = (float)$parts[1];
+        $maxLng = (float)$parts[2]; $maxLat = (float)$parts[3];
+        // Handle antimeridian crossing (minLng > maxLng means we wrap around)
+        if ($minLng <= $maxLng) {
+            $query .= " AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?";
+            $params[] = $minLng; $params[] = $maxLng;
+            $params[] = $minLat; $params[] = $maxLat;
+        } else {
+            $query .= " AND (lng >= ? OR lng <= ?) AND lat BETWEEN ? AND ?";
+            $params[] = $minLng; $params[] = $maxLng;
+            $params[] = $minLat; $params[] = $maxLat;
+        }
     }
 }
 
-$whereSql = implode(' AND ', $where);
-
-// --- Sort (index-friendly, no ORDER BY RAND) ---
-$sort = $_GET['sort'] ?? 'newest';
-switch ($sort) {
-    case 'price_low':  $orderBy = "price ASC, id DESC"; break;
-    case 'price_high': $orderBy = "price DESC, id DESC"; break;
-    case 'oldest':     $orderBy = "created_at ASC, id ASC"; break;
-    case 'trending':   $orderBy = "view_count DESC, created_at DESC"; break;
-    case 'newest':
-    default:           $orderBy = "created_at DESC, id DESC"; break;
+if (isset($_GET['sort'])) {
+    if ($_GET['sort'] === 'price_low') {
+        $query .= " ORDER BY price ASC";
+    } else if ($_GET['sort'] === 'price_high') {
+        $query .= " ORDER BY price DESC";
+    } else if ($_GET['sort'] === 'oldest') {
+        $query .= " ORDER BY created_at ASC";
+    } else if ($_GET['sort'] === 'trending') {
+        $query .= " ORDER BY RAND()"; // Mock trending for now
+    } else {
+        $query .= " ORDER BY created_at DESC";
+    }
+} else {
+    $query .= " ORDER BY created_at DESC";
 }
 
-// --- Pagination ---
-$page  = isset($_GET['page'])  ? max(1, (int) $_GET['page']) : 1;
-$limit = isset($_GET['limit']) ? (int) $_GET['limit']        : 24;
-if ($limit < 1)   $limit = 24;
-if ($limit > 100) $limit = 100; // hard cap to prevent abuse
-$offset = ($page - 1) * $limit;
-
-// Legacy mode: if no `page` param at all, return a plain array (older callers).
-$paginated = isset($_GET['page']);
+// --- Zoom-aware LIMIT (only applied when bbox + zoom passed, i.e. map viewport requests) ---
+if (isset($_GET['zoom']) && is_numeric($_GET['zoom']) && isset($_GET['bbox'])) {
+    $z = (int)$_GET['zoom'];
+    if ($z <= 7)        $limit = 60;    // country view — sparse
+    elseif ($z <= 10)   $limit = 150;   // city view
+    elseif ($z <= 13)   $limit = 350;   // district
+    else                $limit = 1000;  // street level
+    // Allow client override but cap it
+    if (isset($_GET['limit']) && is_numeric($_GET['limit'])) {
+        $limit = min((int)$_GET['limit'], 1000);
+    }
+    $query .= " LIMIT " . (int)$limit;
+}
 
 try {
-    // Count query (uses same WHERE — runs in a few ms with the new indexes).
-    $countSql  = "SELECT COUNT(*) FROM apartments WHERE $whereSql";
-    $countStmt = $pdo->prepare($countSql);
-    $countStmt->execute($params);
-    $total = (int) $countStmt->fetchColumn();
-
-    // Page query. LIMIT/OFFSET bound as ints (PDO emulation requires this).
-    $sql = "SELECT $cardCols FROM apartments WHERE $whereSql ORDER BY $orderBy LIMIT $limit OFFSET $offset";
-    $stmt = $pdo->prepare($sql);
+    $stmt = $pdo->prepare($query);
     $stmt->execute($params);
-    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $apartments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    ob_end_clean();
+    ob_end_clean(); // discard any stray warnings before sending JSON
     header('Content-Type: application/json');
-    header('Cache-Control: private, max-age=10'); // brief client cache to absorb slider chatter
-
-    if ($paginated) {
-        echo json_encode([
-            'items'    => $items,
-            'total'    => $total,
-            'page'     => $page,
-            'limit'    => $limit,
-            'has_more' => ($offset + count($items)) < $total,
-        ]);
-    } else {
-        echo json_encode($items);
-    }
+    echo json_encode($apartments);
 } catch (PDOException $e) {
     ob_end_clean();
     header('Content-Type: application/json');
     http_response_code(500);
-    echo json_encode([
-        'error' => 'Database error: ' . $e->getMessage(),
-        'hint'  => 'Did you run migrations/add_perf_indexes.php on the live server?',
-    ]);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage(), 'hint' => 'Did you run the migration script on the live server?']);
 }
+?>
