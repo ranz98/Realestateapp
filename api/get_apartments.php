@@ -61,38 +61,6 @@ if (isset($_GET['listing_mode']) && in_array($_GET['listing_mode'], ['Buy', 'Ren
     $params[] = $_GET['listing_mode'];
 }
 
-// --- Total count BEFORE bbox/limit (so frontend can decide if lazy mode is needed) ---
-// We splice the SELECT * into SELECT COUNT(*) and run with the current params (no bbox / limit yet).
-$countQuery = 'SELECT COUNT(*) ' . substr($query, strlen('SELECT *'));
-$totalCount = null;
-try {
-    $cstmt = $pdo->prepare($countQuery);
-    $cstmt->execute($params);
-    $totalCount = (int)$cstmt->fetchColumn();
-    header('X-Total-Count: ' . $totalCount);
-    header('Access-Control-Expose-Headers: X-Total-Count');
-} catch (PDOException $e) { /* non-fatal — continue */ }
-
-// --- Bbox filtering for lazy map loading ---
-// Format: bbox=minLng,minLat,maxLng,maxLat
-if (isset($_GET['bbox']) && !empty($_GET['bbox'])) {
-    $parts = explode(',', $_GET['bbox']);
-    if (count($parts) === 4 && array_filter($parts, 'is_numeric') === $parts) {
-        $minLng = (float)$parts[0]; $minLat = (float)$parts[1];
-        $maxLng = (float)$parts[2]; $maxLat = (float)$parts[3];
-        // Handle antimeridian crossing (minLng > maxLng means we wrap around)
-        if ($minLng <= $maxLng) {
-            $query .= " AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?";
-            $params[] = $minLng; $params[] = $maxLng;
-            $params[] = $minLat; $params[] = $maxLat;
-        } else {
-            $query .= " AND (lng >= ? OR lng <= ?) AND lat BETWEEN ? AND ?";
-            $params[] = $minLng; $params[] = $maxLng;
-            $params[] = $minLat; $params[] = $maxLat;
-        }
-    }
-}
-
 if (isset($_GET['sort'])) {
     if ($_GET['sort'] === 'price_low') {
         $query .= " ORDER BY price ASC";
@@ -107,20 +75,6 @@ if (isset($_GET['sort'])) {
     }
 } else {
     $query .= " ORDER BY created_at DESC";
-}
-
-// --- Zoom-aware LIMIT (only applied when bbox + zoom passed, i.e. map viewport requests) ---
-if (isset($_GET['zoom']) && is_numeric($_GET['zoom']) && isset($_GET['bbox'])) {
-    $z = (int)$_GET['zoom'];
-    if ($z <= 7)        $limit = 60;    // country view — sparse
-    elseif ($z <= 10)   $limit = 150;   // city view
-    elseif ($z <= 13)   $limit = 350;   // district
-    else                $limit = 1000;  // street level
-    // Allow client override but cap it
-    if (isset($_GET['limit']) && is_numeric($_GET['limit'])) {
-        $limit = min((int)$_GET['limit'], 1000);
-    }
-    $query .= " LIMIT " . (int)$limit;
 }
 
 try {
