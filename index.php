@@ -202,6 +202,21 @@
                 class="fa-solid fa-table-columns"></i><span>Split</span></button>
         <button class="mvt-btn mvt-active" id="mvt-map" data-mode="map"><i
                 class="fa-solid fa-map-location-dot"></i><span>Map</span></button>
+        <button class="mvt-btn mvt-reels" id="mvt-reels" type="button" aria-label="Reels"><i
+                class="fa-solid fa-clapperboard"></i><span>Reels</span></button>
+    </div>
+
+    <!-- ═══ REELS OVERLAY (mobile only) ═══ -->
+    <div class="reels-overlay" id="reels-overlay" aria-hidden="true">
+        <div class="reels-topbar">
+            <span class="reels-title">Reels</span>
+            <button class="reels-close" id="reels-close" aria-label="Close reels">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="reels-feed" id="reels-feed">
+            <div class="reels-loading">Loading reels…</div>
+        </div>
     </div>
 
     <!-- Hidden inputs for JS price sync -->
@@ -354,6 +369,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
     <script src="script.js?v=<?php echo time(); ?>"></script>
     <script src="terminal.js?v=<?php echo time(); ?>"></script>
+    <script src="reels.js?v=<?php echo time(); ?>"></script>
     <script>
         /* ── Filter sync layer ── */
         document.addEventListener('DOMContentLoaded', () => {
