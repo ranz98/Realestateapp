@@ -135,11 +135,17 @@ function reelsInit() {
                     keyboard: false,
                     tap: false,
                     touchZoom: false,
-                }).setView([lat, lng], 14);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
+                }).setView([lat, lng], 13);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; OpenStreetMap',
                 }).addTo(map);
-                L.marker([lat, lng]).addTo(map);
+                const pinIcon = L.divIcon({
+                    className: '',
+                    html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="42"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="#0ea5e9"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>',
+                    iconSize: [28, 42],
+                    iconAnchor: [14, 42],
+                });
+                L.marker([lat, lng], { icon: pinIcon }).addTo(map);
                 setTimeout(() => { try { map.invalidateSize(); } catch (_) {} }, 60);
                 el.dataset.mapReady = '1';
             } catch (e) {
