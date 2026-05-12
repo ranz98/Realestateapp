@@ -209,6 +209,13 @@
     <!-- ═══ REELS OVERLAY (mobile only) ═══ -->
     <div class="reels-overlay" id="reels-overlay" aria-hidden="true">
         <div class="reels-topbar">
+            <a href="index.php" class="t-logo reels-logo" style="text-decoration:none;">
+                <i class="fa-solid fa-house-chimney-window t-logo-icon"></i>
+                <span class="t-logo-words">
+                    <span class="t-logo-top">MyHome</span>
+                    <span class="t-logo-bot">MyLand</span>
+                </span>
+            </a>
             <span class="reels-title">Reels</span>
             <button class="reels-close" id="reels-close" aria-label="Close reels">
                 <i class="fa-solid fa-xmark"></i>
