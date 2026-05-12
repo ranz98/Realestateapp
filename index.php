@@ -216,10 +216,12 @@
                     <span class="t-logo-bot">MyLand</span>
                 </span>
             </a>
-            <span class="reels-title">Reels</span>
-            <button class="reels-close" id="reels-close" aria-label="Close reels">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+            <div class="reels-topbar-right">
+                <span class="reels-title">Reels</span>
+                <button class="reels-close" id="reels-close" aria-label="Close reels">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
         </div>
         <div class="reels-feed" id="reels-feed">
             <div class="reels-loading">Loading reels…</div>
