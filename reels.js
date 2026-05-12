@@ -71,21 +71,24 @@ function reelsInit() {
 
         return `
         <div class="reel-listing-panel" data-apartment-id="${listing.id}">
-            <a class="reel-mini-card" href="apartment.php?id=${listing.id}">
-                <div class="reel-mini-card-img" style="background-image:url('${escapeHtml(img)}')">
-                    ${mode ? `<span class="reel-mini-mode ${modeClass}">${escapeHtml(mode)}</span>` : ''}
-                    <span class="reel-mini-price">Rs. ${price ? price.replace('Rs. ', '') : '—'}${period}</span>
+            <div class="reel-lp-top">
+                <a class="reel-mini-card" href="apartment.php?id=${listing.id}">
+                    <div class="reel-mini-card-img" style="background-image:url('${escapeHtml(img)}')">
+                        ${mode ? `<span class="reel-mini-mode ${modeClass}">${escapeHtml(mode)}</span>` : ''}
+                        <span class="reel-mini-price">Rs. ${price ? price.replace('Rs. ', '') : '—'}${period}</span>
+                    </div>
+                </a>
+                <a class="reel-mini-map" href="apartment.php?id=${listing.id}"
+                   data-lat="${listing.lat || ''}" data-lng="${listing.lng || ''}">
+                    <div class="reel-mini-map-canvas"></div>
+                </a>
+            </div>
+            <a class="reel-lp-title-bar" href="apartment.php?id=${listing.id}">
+                <h4>${escapeHtml(listing.title || '')}</h4>
+                <div class="reel-lp-sub">
+                    <span class="reel-mini-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(listing.address || '')}</span>
+                    <span class="reel-mini-stats">${stats}</span>
                 </div>
-                <div class="reel-mini-body">
-                    <h4>${escapeHtml(listing.title || '')}</h4>
-                    <div class="reel-mini-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(listing.address || '')}</div>
-                    <div class="reel-mini-stats">${stats}</div>
-                </div>
-            </a>
-            <a class="reel-mini-map" href="apartment.php?id=${listing.id}"
-               data-lat="${listing.lat || ''}" data-lng="${listing.lng || ''}">
-                <div class="reel-mini-map-canvas"></div>
-                <div class="reel-mini-map-cta"><i class="fa-solid fa-map-location-dot"></i> View on map</div>
             </a>
         </div>`;
     }
