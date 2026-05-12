@@ -2043,6 +2043,7 @@ textarea:focus {
 .reels-topbar > * { pointer-events: auto; }
 .reels-topbar .reels-logo {
     flex: 0 0 auto;
+    order: 0 !important;           /* override terminal.css mobile rule that forces order:1 */
     margin-right: auto;            /* keep logo hard-left, pushes the rest right */
 }
 .reels-topbar-right {
@@ -2050,6 +2051,7 @@ textarea:focus {
     align-items: center;
     gap: .6rem;
     flex: 0 0 auto;
+    order: 2;
     pointer-events: auto;
 }
 .reels-title {
