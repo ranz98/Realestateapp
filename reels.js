@@ -85,7 +85,6 @@ function reelsInit() {
             <a class="reel-mini-map" href="apartment.php?id=${listing.id}"
                data-lat="${listing.lat || ''}" data-lng="${listing.lng || ''}">
                 <div class="reel-mini-map-canvas"></div>
-                <div class="reel-mini-map-cta"><i class="fa-solid fa-map-location-dot"></i> View on map</div>
             </a>
         </div>`;
     }

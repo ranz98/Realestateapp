@@ -2291,11 +2291,11 @@ body.reels-open .mobile-view-toggle { display: none !important; }
 }
 .reel-mini-map {
     position: relative;
-    justify-content: flex-start;
 }
 .reel-mini-map-canvas {
-    flex: 0 0 48%;
+    flex: 1 1 auto;
     width: 100%;
+    height: 100%;
     background: #1f2937;
 }
 .reel-mini-map-canvas .leaflet-control-attribution,
