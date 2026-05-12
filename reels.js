@@ -78,8 +78,10 @@ function reelsInit() {
                 </div>
                 <div class="reel-mini-body">
                     <h4>${escapeHtml(listing.title || '')}</h4>
-                    <div class="reel-mini-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(listing.address || '')}</div>
-                    <div class="reel-mini-stats">${stats}</div>
+                    <div class="reel-mini-addr-row">
+                        <span class="reel-mini-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(listing.address || '')}</span>
+                        <span class="reel-mini-stats">${stats}</span>
+                    </div>
                 </div>
             </a>
             <a class="reel-mini-map" href="apartment.php?id=${listing.id}"
