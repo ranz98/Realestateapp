@@ -985,8 +985,8 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow: hidden;
         -webkit-overflow-scrolling: touch;
-        /* No internal reservation — the drag bar floats just above the sheet. */
-        padding-top: 0;
+        /* The drag bar sits at the top of the sheet — reserve matching room so cards sit flush below it. */
+        padding-top: 24px;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
     }
     .main-container.split-mode .listings-scroll-container {
@@ -1011,7 +1011,8 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         left: 0;
         right: 0;
         /* Slim bar floating just ABOVE the listings sheet so it never overlaps cards. */
-        bottom: calc(var(--split-pct, 60) * 1vh + 2px);
+        /* Sit flush on the top of the listings sheet, directly above the cards (no gap). */
+        bottom: calc(var(--split-pct, 60) * 1vh - 24px);
         left: 0;
         right: 0;
         height: 24px;
