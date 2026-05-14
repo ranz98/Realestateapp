@@ -1022,8 +1022,6 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         left: 0;
         right: 0;
         height: 26px;
-        border-top-left-radius: 18px;
-        border-top-right-radius: 18px;
         /* Slide in WITH the sheet so the fold animates as one unit (travels the sheet's full height). */
         animation: split-grabber-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
         will-change: transform;
@@ -1034,8 +1032,13 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         background: rgba(255, 255, 255, .55);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        border-radius: 0;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+        /* Pronounced rounded top corners so the bar reads as the "fold" of the sheet. */
+        border-top-left-radius: 22px;
+        border-top-right-radius: 22px;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        overflow: hidden;            /* clip backdrop-filter blur to the rounded shape */
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, .08);
     }
     [data-theme="dark"] .main-container.split-mode #split-grabber {
         background: rgba(30, 41, 59, .55);
