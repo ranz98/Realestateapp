@@ -985,8 +985,6 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow: hidden;
         -webkit-overflow-scrolling: touch;
-        /* Reserve a clean white strip at the top for the drag handle so it never overlaps cards. */
-        padding-top: 36px;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
     }
     .main-container.split-mode .listings-scroll-container {
@@ -999,44 +997,66 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         to   { transform: translateY(0); }
     }
 
-    /* YouTube-style drag handle: thin black pill sitting INSIDE the top of the
-       listings sheet (not straddling the edge). The element is a wide
-       transparent strip that catches taps — the small pill is just decoration. */
+    /* Drag-handle bar — its own pill ABOVE the listings sheet:
+       [ ↑ ]    ===== grabber =====    [ ↓ ] */
     #split-grabber { display: none; }
     .main-container.split-mode #split-grabber {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        gap: .6rem;
         position: absolute;
-        left: 0;
-        right: 0;
-        /* Sit fully inside the 36px white strip at the top of the listings sheet,
-           with its visual center ~18px below the sheet's top edge. */
-        bottom: calc(var(--split-pct, 60) * 1vh - 36px);
+        left: 50%;
+        transform: translateX(-50%);
+        /* Sit just above the top edge of the listings sheet. */
+        bottom: calc(var(--split-pct, 60) * 1vh + 8px);
         height: 36px;
+        padding: 0 .55rem;
+        min-width: 200px;
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
-        background: transparent;
+        background: rgba(20, 20, 20, .55);
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 999px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
     }
     .split-grabber-handle {
-        width: 44px;
+        flex: 1 1 auto;
+        max-width: 70px;
         height: 4px;
         border-radius: 999px;
-        background: #111;             /* solid black — subtle but obvious */
-        opacity: .8;
-        transition: background .15s ease, width .15s ease, height .15s ease, opacity .15s ease;
+        background: rgba(255, 255, 255, .95);
+        transition: max-width .15s ease, height .15s ease;
         pointer-events: none;
     }
-    [data-theme="dark"] .split-grabber-handle {
-        background: #fff;
-        opacity: .85;
+    .split-arrow {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .14);
+        color: #fff;
+        font-size: .8rem;
+        cursor: pointer;
+        padding: 0;
+        transition: background .15s ease, transform .1s ease;
     }
-    #split-grabber:active .split-grabber-handle,
+    .split-arrow:hover { background: rgba(255, 255, 255, .26); }
+    .split-arrow:active { transform: scale(.92); }
+    #split-grabber:active,
+    #split-grabber.is-dragging {
+        background: rgba(20, 20, 20, .8);
+    }
     #split-grabber.is-dragging .split-grabber-handle {
-        width: 56px;
+        max-width: 88px;
         height: 5px;
-        opacity: 1;
     }
 
     body.mobile-map-only .site-footer {

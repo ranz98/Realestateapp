@@ -379,8 +379,27 @@ document.addEventListener('DOMContentLoaded', () => {
         grab.id = 'split-grabber';
         grab.setAttribute('aria-label', 'Drag to resize map and list');
         grab.setAttribute('role', 'separator');
-        grab.innerHTML = '<span class="split-grabber-handle"></span>';
+        grab.innerHTML =
+            '<button type="button" class="split-arrow split-arrow-up" aria-label="Show more listings"><i class="fa-solid fa-chevron-up"></i></button>' +
+            '<span class="split-grabber-handle"></span>' +
+            '<button type="button" class="split-arrow split-arrow-down" aria-label="Show more map"><i class="fa-solid fa-chevron-down"></i></button>';
         mainContainer.appendChild(grab);
+
+        // Arrow buttons step through snap points (up = bigger list, down = bigger map).
+        grab.querySelector('.split-arrow-up').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cur = parseFloat(getComputedStyle(mainContainer).getPropertyValue('--split-pct')) || 60;
+            const next = SNAPS.find(s => s > cur + 0.5);
+            if (next != null) setSplitPct(next, true);
+            else applyMobileMode('list');
+        });
+        grab.querySelector('.split-arrow-down').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cur = parseFloat(getComputedStyle(mainContainer).getPropertyValue('--split-pct')) || 60;
+            const next = [...SNAPS].reverse().find(s => s < cur - 0.5);
+            if (next != null) setSplitPct(next, true);
+            else applyMobileMode('map');
+        });
 
         function setSplitPct(pct, persist) {
             const clamped = Math.max(6, Math.min(94, pct));
