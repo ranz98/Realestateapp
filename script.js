@@ -380,9 +380,11 @@ document.addEventListener('DOMContentLoaded', () => {
         grab.setAttribute('aria-label', 'Drag to resize map and list');
         grab.setAttribute('role', 'separator');
         grab.innerHTML =
-            '<button type="button" class="split-arrow split-arrow-up" aria-label="Show more listings"><i class="fa-solid fa-chevron-up"></i></button>' +
-            '<span class="split-grabber-handle"></span>' +
-            '<button type="button" class="split-arrow split-arrow-down" aria-label="Show more map"><i class="fa-solid fa-chevron-down"></i></button>';
+            '<div class="split-grabber-pill">' +
+                '<button type="button" class="split-arrow split-arrow-up" aria-label="Show more listings"><i class="fa-solid fa-chevron-up"></i></button>' +
+                '<span class="split-grabber-handle"></span>' +
+                '<button type="button" class="split-arrow split-arrow-down" aria-label="Show more map"><i class="fa-solid fa-chevron-down"></i></button>' +
+            '</div>';
         mainContainer.appendChild(grab);
 
         // Arrow buttons step through snap points (up = bigger list, down = bigger map).
