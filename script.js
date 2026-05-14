@@ -379,10 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         grab.id = 'split-grabber';
         grab.setAttribute('aria-label', 'Drag to resize map and list');
         grab.setAttribute('role', 'separator');
-        grab.innerHTML =
-            '<span class="split-grabber-chev split-grabber-up"><i class="fa-solid fa-chevron-up"></i></span>' +
-            '<span class="split-grabber-handle"></span>' +
-            '<span class="split-grabber-chev split-grabber-down"><i class="fa-solid fa-chevron-down"></i></span>';
+        grab.innerHTML = '<span class="split-grabber-handle"></span>';
         mainContainer.appendChild(grab);
 
         function setSplitPct(pct, persist) {
