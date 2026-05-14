@@ -1005,8 +1005,8 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     .main-container.split-mode #split-grabber {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: .5rem;
+        justify-content: center;
+        gap: .9rem;
         position: absolute;
         left: 0;
         right: 0;
@@ -1022,13 +1022,12 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         border-top-right-radius: 18px;
     }
     .split-grabber-handle {
-        flex: 1 1 auto;
-        max-width: 56px;
+        flex: 0 0 auto;
+        width: 56px;
         height: 4px;
         border-radius: 999px;
         background: rgba(0, 0, 0, .22);
-        margin: 0 auto;
-        transition: max-width .15s ease, background .15s ease;
+        transition: width .15s ease, background .15s ease;
         pointer-events: none;
     }
     [data-theme="dark"] .split-grabber-handle {
@@ -1054,7 +1053,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     .split-arrow:hover  { opacity: 1; background: rgba(0, 0, 0, .05); }
     .split-arrow:active { transform: scale(.9); }
     #split-grabber.is-dragging .split-grabber-handle {
-        max-width: 72px;
+        width: 72px;
         background: rgba(0, 0, 0, .45);
     }
 
