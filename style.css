@@ -1021,23 +1021,6 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         border-top-left-radius: 18px;
         border-top-right-radius: 18px;
     }
-    /* Centered pill that wraps arrows + drag handle — almost invisible, just barely tinted */
-    .split-grabber-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: .75rem;
-        padding: 3px 9px;
-        background: rgba(0, 0, 0, .025);
-        border: none;
-        border-radius: 999px;
-        transition: background .15s ease;
-    }
-    [data-theme="dark"] .split-grabber-pill {
-        background: rgba(255, 255, 255, .035);
-    }
-    #split-grabber.is-dragging .split-grabber-pill {
-        background: rgba(0, 0, 0, .07);
-    }
     .split-grabber-handle {
         flex: 0 0 auto;
         width: 48px;
