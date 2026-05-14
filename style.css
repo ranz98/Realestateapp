@@ -979,12 +979,14 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         flex: none !important;
         z-index: 20;
         background: var(--bg-main);
-        border-top: 2px solid var(--primary);
+        border-top: 1px solid var(--border-glass);
         border-top-left-radius: 18px;
         border-top-right-radius: 18px;
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* Reserve a clean white strip at the top for the drag handle so it never overlaps cards. */
+        padding-top: 22px;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
     }
 
@@ -1004,9 +1006,9 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         position: absolute;
         left: 0;
         right: 0;
-        /* Anchor entirely below the sheet's top edge so the pill sits inside the white area. */
-        bottom: calc(var(--split-pct, 60) * 1vh - 30px);
-        height: 30px;                 /* invisible but generous touch zone */
+        /* Sit inside the 22px white strip we reserved at the top of the listings sheet. */
+        bottom: calc(var(--split-pct, 60) * 1vh - 26px);
+        height: 26px;
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
