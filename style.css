@@ -1012,24 +1012,22 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         right: 0;
         /* Slim bar floating just ABOVE the listings sheet so it never overlaps cards. */
         bottom: calc(var(--split-pct, 60) * 1vh + 2px);
+        left: 0;
+        right: 0;
         height: 24px;
-        padding: 0 1.8rem;          /* extra side padding -> visible bg flanking the controls */
+        padding: 0 .9rem;
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
-        background: rgba(255, 255, 255, .92);
+        background: rgba(255, 255, 255, .55);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        border-radius: 999px;
-        left: 50%;
-        right: auto;
-        transform: translateX(-50%);
-        min-width: 200px;
-        box-shadow: 0 3px 14px rgba(0, 0, 0, .18);
+        border-radius: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
     }
     [data-theme="dark"] .main-container.split-mode #split-grabber {
-        background: rgba(30, 41, 59, .92);
-        box-shadow: 0 3px 14px rgba(0, 0, 0, .45);
+        background: rgba(30, 41, 59, .55);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
     }
     .split-grabber-handle {
         flex: 0 0 auto;
