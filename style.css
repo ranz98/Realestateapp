@@ -1017,7 +1017,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
-        background: var(--bg-main);
+        background: transparent;
         border-top-left-radius: 18px;
         border-top-right-radius: 18px;
     }
