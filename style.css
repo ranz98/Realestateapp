@@ -996,39 +996,84 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     /* Draggable grabber on the top edge of the listings sheet (split-mode only). */
     #split-grabber { display: none; }
     .main-container.split-mode #split-grabber {
-        display: block;
-        position: absolute;
-        left: 0;
-        right: 0;
-        /* Wider hit area so it's easy to grab on touch, while looking thin. */
-        bottom: calc(var(--split-pct, 60) * 1vh - 18px);
-        height: 36px;
-        z-index: 25;                /* above the listings sheet (z:20) */
-        cursor: ns-resize;
-        touch-action: none;
-        background: transparent;
-    }
-    .split-grabber-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .55rem;
         position: absolute;
         left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        width: 72px;
-        height: 4px;                /* slimmer pill */
+        transform: translateX(-50%);
+        bottom: calc(var(--split-pct, 60) * 1vh - 22px);
+        width: 168px;
+        height: 44px;                 /* generous touch hit-area */
+        padding: 0 14px;
+        z-index: 25;                  /* above the listings sheet (z:20) */
+        cursor: ns-resize;
+        touch-action: none;
+        /* Pill capsule that visually reads as a draggable handle */
+        background: rgba(255, 255, 255, .92);
+        border: 1px solid var(--border-glass, rgba(0,0,0,.08));
         border-radius: 999px;
-        background: var(--primary);
-        opacity: .85;               /* visible at rest — clear affordance */
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, .12); /* soft glow ring */
-        transition: opacity .15s ease, width .15s ease, height .15s ease, box-shadow .15s ease;
+        box-shadow:
+            0 8px 20px rgba(0, 0, 0, .18),
+            0 0 0 4px rgba(14, 165, 233, .10);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    [data-theme="dark"] .main-container.split-mode #split-grabber {
+        background: rgba(30, 41, 59, .92);
+        border-color: rgba(255,255,255,.12);
+    }
+    .split-grabber-handle {
+        flex: 0 0 auto;
+        width: 56px;
+        height: 5px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+        box-shadow: 0 1px 3px rgba(14, 165, 233, .45);
+        transition: width .15s ease, height .15s ease;
         pointer-events: none;
     }
-    #split-grabber:hover .split-grabber-handle,
-    #split-grabber.is-dragging .split-grabber-handle {
-        opacity: 1;
-        width: 88px;
-        height: 5px;
-        box-shadow: 0 0 0 6px rgba(14, 165, 233, .22);
+    .split-grabber-chev {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        color: var(--primary, #0ea5e9);
+        font-size: .65rem;
+        opacity: .7;
+        pointer-events: none;
+        transition: opacity .15s ease, transform .15s ease;
     }
+    /* Subtle one-shot bobbing hint when the grabber first appears */
+    .main-container.split-mode #split-grabber {
+        animation: split-grabber-bob 1.2s ease-out 0.15s 2;
+    }
+    @keyframes split-grabber-bob {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50%      { transform: translateX(-50%) translateY(-3px); }
+    }
+    /* Pressed / dragging state */
+    #split-grabber:active,
+    #split-grabber.is-dragging {
+        background: #fff;
+        box-shadow:
+            0 10px 26px rgba(0, 0, 0, .25),
+            0 0 0 6px rgba(14, 165, 233, .22);
+        animation: none;
+    }
+    #split-grabber.is-dragging .split-grabber-handle {
+        width: 64px;
+        height: 6px;
+    }
+    #split-grabber.is-dragging .split-grabber-chev {
+        opacity: 1;
+    }
+    #split-grabber.is-dragging .split-grabber-up    { transform: translateY(-2px); }
+    #split-grabber.is-dragging .split-grabber-down  { transform: translateY( 2px); }
 
     body.mobile-map-only .site-footer {
         display: none !important;
