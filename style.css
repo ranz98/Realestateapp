@@ -993,9 +993,9 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         to   { transform: translateY(0); }
     }
 
-    /* YouTube-style drag handle: thin grey pill sitting on the top edge of the
-       sheet. The element itself is a tall transparent strip that catches taps
-       — the small pill is just decoration. */
+    /* YouTube-style drag handle: thin black pill sitting INSIDE the top of the
+       listings sheet (not straddling the edge). The element is a wide
+       transparent strip that catches taps — the small pill is just decoration. */
     #split-grabber { display: none; }
     .main-container.split-mode #split-grabber {
         display: flex;
@@ -1004,33 +1004,32 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         position: absolute;
         left: 0;
         right: 0;
-        bottom: calc(var(--split-pct, 60) * 1vh - 16px);
-        height: 32px;                 /* invisible but generous touch zone */
+        /* Anchor entirely below the sheet's top edge so the pill sits inside the white area. */
+        bottom: calc(var(--split-pct, 60) * 1vh - 30px);
+        height: 30px;                 /* invisible but generous touch zone */
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
         background: transparent;
     }
     .split-grabber-handle {
-        width: 40px;
+        width: 44px;
         height: 4px;
         border-radius: 999px;
-        background: rgba(0, 0, 0, .35);
-        transition: background .15s ease, width .15s ease, height .15s ease;
+        background: #111;             /* solid black — subtle but obvious */
+        opacity: .8;
+        transition: background .15s ease, width .15s ease, height .15s ease, opacity .15s ease;
         pointer-events: none;
     }
     [data-theme="dark"] .split-grabber-handle {
-        background: rgba(255, 255, 255, .55);
+        background: #fff;
+        opacity: .85;
     }
     #split-grabber:active .split-grabber-handle,
     #split-grabber.is-dragging .split-grabber-handle {
-        width: 48px;
+        width: 56px;
         height: 5px;
-        background: rgba(0, 0, 0, .65);
-    }
-    [data-theme="dark"] #split-grabber:active .split-grabber-handle,
-    [data-theme="dark"] #split-grabber.is-dragging .split-grabber-handle {
-        background: #fff;
+        opacity: 1;
     }
 
     body.mobile-map-only .site-footer {
