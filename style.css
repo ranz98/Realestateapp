@@ -985,8 +985,8 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow: hidden;
         -webkit-overflow-scrolling: touch;
-        /* Reserve room at the top for the full-width drag bar that blends into the sheet. */
-        padding-top: 22px;
+        /* No internal reservation — the drag bar floats just above the sheet. */
+        padding-top: 0;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
     }
     .main-container.split-mode .listings-scroll-container {
@@ -1010,16 +1010,26 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         position: absolute;
         left: 0;
         right: 0;
-        /* Slim bar at the top of the listings sheet, same width, same bg. */
-        bottom: calc(var(--split-pct, 60) * 1vh - 22px);
+        /* Slim bar floating just ABOVE the listings sheet so it never overlaps cards. */
+        bottom: calc(var(--split-pct, 60) * 1vh + 2px);
         height: 22px;
         padding: 0 .9rem;
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
-        background: transparent;
-        border-top-left-radius: 18px;
-        border-top-right-radius: 18px;
+        background: rgba(255, 255, 255, .65);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 999px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        min-width: 160px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
+    }
+    [data-theme="dark"] .main-container.split-mode #split-grabber {
+        background: rgba(30, 41, 59, .65);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
     }
     .split-grabber-handle {
         flex: 0 0 auto;
