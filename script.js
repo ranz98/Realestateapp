@@ -365,6 +365,113 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    /* ════════════════════════════════════════════════════════════════
+       MOBILE SPLIT-VIEW DRAG  — draggable grabber with 5 snap points
+       Snaps:  10 / 30 / 50 / 70 / 90 (vh = listings sheet height %)
+       Drag down past 8% → full MAP. Drag up past 92% → full LIST.
+       ════════════════════════════════════════════════════════════════ */
+    (function setupSplitGrabber() {
+        if (!mainContainer) return;
+        const SNAPS = [10, 30, 50, 70, 90];
+        const STORAGE_KEY = 'mobileSplitPct';
+
+        const grab = document.createElement('div');
+        grab.id = 'split-grabber';
+        grab.setAttribute('aria-label', 'Drag to resize map and list');
+        grab.setAttribute('role', 'separator');
+        grab.innerHTML = '<span class="split-grabber-handle"></span>';
+        mainContainer.appendChild(grab);
+
+        function setSplitPct(pct, persist) {
+            const clamped = Math.max(6, Math.min(94, pct));
+            mainContainer.style.setProperty('--split-pct', clamped);
+            if (persist) { try { localStorage.setItem(STORAGE_KEY, String(clamped)); } catch (e) {} }
+            if (map) setTimeout(() => { try { map.invalidateSize(); } catch (_) {} }, 30);
+        }
+        function nearestSnap(pct) {
+            let best = SNAPS[0], bd = Infinity;
+            SNAPS.forEach(s => { const d = Math.abs(s - pct); if (d < bd) { bd = d; best = s; } });
+            return best;
+        }
+
+        // Wrap applyMobileMode to restore last split position when entering split mode.
+        const _origApply = applyMobileMode;
+        applyMobileMode = function (mode) {
+            _origApply(mode);
+            if (mode === 'split') {
+                const saved = parseFloat(localStorage.getItem(STORAGE_KEY) || '60');
+                setSplitPct(isFinite(saved) ? saved : 60, false);
+            }
+        };
+
+        // If we're already in split mode at boot (restored from localStorage), seed the variable now.
+        if (mainContainer.classList.contains('split-mode')) {
+            const saved = parseFloat(localStorage.getItem(STORAGE_KEY) || '60');
+            setSplitPct(isFinite(saved) ? saved : 60, false);
+        }
+
+        let dragging = false, startY = 0, startPct = 60, vh = window.innerHeight;
+
+        function onStart(clientY) {
+            if (!mainContainer.classList.contains('split-mode')) return false;
+            dragging = true;
+            vh = window.innerHeight;
+            startY = clientY;
+            startPct = parseFloat(getComputedStyle(mainContainer).getPropertyValue('--split-pct')) || 60;
+            grab.classList.add('is-dragging');
+            document.body.style.userSelect = 'none';
+            return true;
+        }
+        function onMove(clientY) {
+            if (!dragging) return;
+            // Sheet is anchored bottom. Dragging DOWN shrinks the sheet (map grows).
+            const dy = clientY - startY;
+            const pct = startPct - (dy / vh) * 100;
+            setSplitPct(pct, false);
+        }
+        function onEnd() {
+            if (!dragging) return;
+            dragging = false;
+            grab.classList.remove('is-dragging');
+            document.body.style.userSelect = '';
+            const cur = parseFloat(getComputedStyle(mainContainer).getPropertyValue('--split-pct')) || 60;
+            if (cur <= 8)  { applyMobileMode('map');  return; }
+            if (cur >= 92) { applyMobileMode('list'); return; }
+            setSplitPct(nearestSnap(cur), true);
+        }
+
+        // Touch
+        grab.addEventListener('touchstart', e => {
+            if (onStart(e.touches[0].clientY)) e.preventDefault();
+        }, { passive: false });
+        grab.addEventListener('touchmove',  e => onMove(e.touches[0].clientY), { passive: true });
+        grab.addEventListener('touchend',   onEnd);
+        grab.addEventListener('touchcancel', onEnd);
+        // Mouse (for dev tools / tablets)
+        grab.addEventListener('mousedown', e => {
+            if (onStart(e.clientY)) {
+                e.preventDefault();
+                const mm = ev => onMove(ev.clientY);
+                const mu = () => { onEnd(); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+                document.addEventListener('mousemove', mm);
+                document.addEventListener('mouseup', mu);
+            }
+        });
+
+        // Double-tap the grabber → cycle to next snap.
+        let lastTap = 0;
+        grab.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastTap < 350) {
+                const cur = parseFloat(getComputedStyle(mainContainer).getPropertyValue('--split-pct')) || 60;
+                const idx = SNAPS.indexOf(nearestSnap(cur));
+                const next = SNAPS[(idx + 1) % SNAPS.length];
+                setSplitPct(next, true);
+            }
+            lastTap = now;
+        });
+    })();
+
     // --- Price Slider (mobile) ---
     const priceSlider = document.getElementById('price-slider');
     const minPriceInput = document.getElementById('filter-min-price');

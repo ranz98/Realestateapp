@@ -964,6 +964,10 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         border-bottom: none;
     }
 
+    .main-container.split-mode {
+        --split-pct: 60;
+    }
+
     .main-container.split-mode .listings-section {
         display: block !important;
         position: absolute !important;
@@ -971,7 +975,7 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         right: 0;
         bottom: 0;
         width: 100% !important;
-        height: 60vh;
+        height: calc(var(--split-pct, 60) * 1vh) !important;
         flex: none !important;
         z-index: 20;
         background: var(--bg-main);
@@ -987,6 +991,40 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
     @keyframes split-sheet-slide-up {
         from { transform: translateY(100%); }
         to   { transform: translateY(0); }
+    }
+
+    /* Draggable grabber on the top edge of the listings sheet (split-mode only). */
+    #split-grabber { display: none; }
+    .main-container.split-mode #split-grabber {
+        display: block;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(var(--split-pct, 60) * 1vh - 14px);
+        height: 28px;
+        z-index: 25;                /* above the listings sheet (z:20) */
+        cursor: ns-resize;
+        touch-action: none;
+        background: transparent;
+    }
+    .split-grabber-handle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 56px;
+        height: 5px;
+        border-radius: 999px;
+        background: var(--text-secondary);
+        opacity: .55;
+        transition: opacity .15s ease, width .15s ease, background .15s ease;
+        pointer-events: none;
+    }
+    #split-grabber:hover .split-grabber-handle,
+    #split-grabber.is-dragging .split-grabber-handle {
+        opacity: .95;
+        width: 72px;
+        background: var(--primary);
     }
 
     body.mobile-map-only .site-footer {
