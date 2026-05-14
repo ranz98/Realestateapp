@@ -985,6 +985,8 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
         overflow: hidden;
         -webkit-overflow-scrolling: touch;
+        /* Reserve room at the top for the full-width drag bar that blends into the sheet. */
+        padding-top: 34px;
         animation: split-sheet-slide-up 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
     }
     .main-container.split-mode .listings-scroll-container {
@@ -997,66 +999,63 @@ html:not([data-theme="dark"]) .theme-toggle i.fa-sun {
         to   { transform: translateY(0); }
     }
 
-    /* Drag-handle bar — its own pill ABOVE the listings sheet:
-       [ ↑ ]    ===== grabber =====    [ ↓ ] */
+    /* Full-width drag bar that blends into the top of the listings sheet:
+       [ ↑ ]    ───── grabber ─────    [ ↓ ] */
     #split-grabber { display: none; }
     .main-container.split-mode #split-grabber {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .6rem;
+        gap: .5rem;
         position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        /* Sit just above the top edge of the listings sheet. */
-        bottom: calc(var(--split-pct, 60) * 1vh + 8px);
-        height: 36px;
-        padding: 0 .55rem;
-        min-width: 200px;
+        left: 0;
+        right: 0;
+        /* Sit on the top 34px of the listings sheet, same width, same bg. */
+        bottom: calc(var(--split-pct, 60) * 1vh - 34px);
+        height: 34px;
+        padding: 0 .9rem;
         z-index: 25;
         cursor: ns-resize;
         touch-action: none;
-        background: rgba(20, 20, 20, .55);
-        border: 1px solid rgba(255, 255, 255, .18);
-        border-radius: 999px;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+        background: var(--bg-main);
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
     }
     .split-grabber-handle {
         flex: 1 1 auto;
-        max-width: 70px;
+        max-width: 56px;
         height: 4px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, .95);
-        transition: max-width .15s ease, height .15s ease;
+        background: rgba(0, 0, 0, .22);
+        margin: 0 auto;
+        transition: max-width .15s ease, background .15s ease;
         pointer-events: none;
+    }
+    [data-theme="dark"] .split-grabber-handle {
+        background: rgba(255, 255, 255, .35);
     }
     .split-arrow {
         flex: 0 0 auto;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
+        width: 26px;
+        height: 26px;
         border: none;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, .14);
-        color: #fff;
-        font-size: .8rem;
+        background: transparent;
+        color: var(--text-secondary);
+        opacity: .6;
+        font-size: .78rem;
         cursor: pointer;
         padding: 0;
-        transition: background .15s ease, transform .1s ease;
+        border-radius: 50%;
+        transition: opacity .15s ease, background .15s ease, transform .1s ease;
     }
-    .split-arrow:hover { background: rgba(255, 255, 255, .26); }
-    .split-arrow:active { transform: scale(.92); }
-    #split-grabber:active,
-    #split-grabber.is-dragging {
-        background: rgba(20, 20, 20, .8);
-    }
+    .split-arrow:hover  { opacity: 1; background: rgba(0, 0, 0, .05); }
+    .split-arrow:active { transform: scale(.9); }
     #split-grabber.is-dragging .split-grabber-handle {
-        max-width: 88px;
-        height: 5px;
+        max-width: 72px;
+        background: rgba(0, 0, 0, .45);
     }
 
     body.mobile-map-only .site-footer {
