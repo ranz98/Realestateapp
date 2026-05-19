@@ -15,7 +15,31 @@ body:has(.auth-shell) {
 
 /* Slim auth header — uses the same t-logo as index.php */
 .site-header.auth-header { position: relative; flex: 0 0 auto; z-index: 10; }
-.auth-header .navbar { padding: .55rem 1rem; }
+.auth-header .navbar {
+    padding: .55rem 1rem;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+/* Override terminal.css mobile rule that forces .t-logo order:1 — keep logo on the LEFT */
+.auth-header .t-logo {
+    order: 0 !important;
+    flex-shrink: 0 !important;
+}
+.auth-header .nav-links {
+    order: 99 !important;
+    display: flex !important;
+    align-items: center;
+    gap: 1rem;
+}
+.auth-header .nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .92rem;
+}
+.auth-header .nav-links a:hover,
+.auth-header .nav-links a.active { color: var(--primary, #0ea5e9); }
 
 /* SHELL — fills the viewport below the header, no scroll */
 .auth-shell {
