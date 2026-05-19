@@ -50,14 +50,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="stylesheet" href="auth.css?v=<?= time() ?>">
 <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
-<body class="no-header">
-<div class="auth-shell">
-    <div class="auth-card">
-        <a href="index.php" class="auth-brand">
-            <i class="fa-solid fa-house-chimney-window"></i>
-            <span>MyHomeMyLand<small>SRI LANKA · REAL ESTATE</small></span>
+<body>
+<header class="site-header">
+    <nav class="navbar">
+        <a href="index.php" class="logo" style="text-decoration:none;">
+            <i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK
         </a>
+        <div class="nav-links">
+            <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
+                <i class="fa-solid fa-moon"></i>
+                <i class="fa-solid fa-sun" style="display:none;"></i>
+            </button>
+            <a href="index.php">Explore</a>
+            <a href="register.php" class="btn-primary">Sign Up</a>
+        </div>
+    </nav>
+</header>
 
+<div class="auth-shell">
+    <aside class="auth-hero" aria-hidden="true">
+        <div class="auth-hero-inner">
+            <span class="auth-hero-eyebrow"><i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand</span>
+            <h2 class="auth-hero-title">Find a home you'll love — across Sri Lanka.</h2>
+            <p class="auth-hero-sub">Browse thousands of verified listings, place bids, and message owners directly. Built for Sri Lankan buyers, renters and agents.</p>
+            <ul class="auth-hero-bullets">
+                <li><i class="fa-solid fa-check"></i> Real-time bidding on listings</li>
+                <li><i class="fa-solid fa-check"></i> Save favourites &amp; get alerts</li>
+                <li><i class="fa-solid fa-check"></i> Verified owner messaging</li>
+            </ul>
+        </div>
+    </aside>
+
+    <div class="auth-card">
         <h1 class="auth-title">Welcome back</h1>
         <p class="auth-subtitle">Log in to manage your listings, bids, and saved properties.</p>
 
@@ -108,13 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <p class="auth-foot">New to MyHomeMyLand? <a href="register.php">Create an account</a></p>
         <p class="auth-fine">By continuing, you agree to our <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a>.</p>
-
-        <a href="index.php" class="auth-back"><i class="fa-solid fa-arrow-left"></i> Back to home</a>
     </div>
 </div>
 
 <div class="auth-toast" id="auth-toast">Coming soon</div>
 
+<script src="script.js"></script>
 <script src="auth.js?v=<?= time() ?>"></script>
 </body>
 </html>

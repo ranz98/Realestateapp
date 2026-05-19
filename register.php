@@ -100,14 +100,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link rel="stylesheet" href="auth.css?v=<?= time() ?>">
 <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
-<body class="no-header">
-<div class="auth-shell">
-    <div class="auth-card">
-        <a href="index.php" class="auth-brand">
-            <i class="fa-solid fa-house-chimney-window"></i>
-            <span>MyHomeMyLand<small>SRI LANKA · REAL ESTATE</small></span>
+<body>
+<header class="site-header">
+    <nav class="navbar">
+        <a href="index.php" class="logo" style="text-decoration:none;">
+            <i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK
         </a>
+        <div class="nav-links">
+            <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
+                <i class="fa-solid fa-moon"></i>
+                <i class="fa-solid fa-sun" style="display:none;"></i>
+            </button>
+            <a href="index.php">Explore</a>
+            <a href="login.php">Login</a>
+        </div>
+    </nav>
+</header>
 
+<div class="auth-shell">
+    <aside class="auth-hero" aria-hidden="true">
+        <div class="auth-hero-inner">
+            <span class="auth-hero-eyebrow"><i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand</span>
+            <h2 class="auth-hero-title">Your next home is one signup away.</h2>
+            <p class="auth-hero-sub">Join thousands of Sri Lankans buying, renting and listing property — all in one place.</p>
+            <ul class="auth-hero-bullets">
+                <li><i class="fa-solid fa-check"></i> Free to list — no hidden fees</li>
+                <li><i class="fa-solid fa-check"></i> Bidding &amp; counter-offer tools</li>
+                <li><i class="fa-solid fa-check"></i> Trusted by verified owners</li>
+            </ul>
+        </div>
+    </aside>
+
+    <div class="auth-card">
         <?php if ($step === 'form'): ?>
             <h1 class="auth-title">Create your account</h1>
             <p class="auth-subtitle">Sign up to list properties, place bids, and save favourites.</p>
@@ -192,7 +216,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <p class="auth-foot">Already have an account? <a href="login.php">Log in</a></p>
             <p class="auth-fine">By continuing, you agree to our <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a>.</p>
-            <a href="index.php" class="auth-back"><i class="fa-solid fa-arrow-left"></i> Back to home</a>
 
         <?php elseif ($step === 'otp'): ?>
             <h1 class="auth-title">Verify your email</h1>
@@ -226,6 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="auth-toast" id="auth-toast">Coming soon</div>
 
+<script src="script.js"></script>
 <script src="auth.js?v=<?= time() ?>"></script>
 </body>
 </html>
