@@ -51,18 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
 <body>
-<header class="site-header">
+<header class="site-header auth-header">
     <nav class="navbar">
-        <a href="index.php" class="logo" style="text-decoration:none;">
-            <i class="fa-solid fa-house-chimney-window"></i> MyHomeMyLand.LK
+        <a href="index.php" class="t-logo" style="text-decoration:none;">
+            <i class="fa-solid fa-house-chimney-window t-logo-icon"></i>
+            <span class="t-logo-words">
+                <span class="t-logo-top">MyHome</span>
+                <span class="t-logo-bot">MyLand</span>
+            </span>
         </a>
         <div class="nav-links">
-            <button id="theme-toggle" class="theme-toggle" title="Toggle Dark/Light Mode">
-                <i class="fa-solid fa-moon"></i>
-                <i class="fa-solid fa-sun" style="display:none;"></i>
-            </button>
-            <a href="index.php">Explore</a>
-            <a href="register.php" class="btn-primary">Sign Up</a>
+            <a href="index.php" class="active">Explore</a>
         </div>
     </nav>
 </header>
