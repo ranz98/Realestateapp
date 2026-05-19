@@ -79,7 +79,10 @@ body:has(.auth-shell) {
     max-height: 100%;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;            /* card scrolls internally if content tall, body stays locked */
+    -webkit-overflow-scrolling: touch;
 }
+.auth-card::-webkit-scrollbar { width: 0; height: 0; }
 
 .auth-title {
     font-family: 'Outfit', sans-serif;
@@ -96,16 +99,16 @@ body:has(.auth-shell) {
     margin-bottom: .9rem;
 }
 
-/* Social buttons — desktop only (hidden on small screens to save vertical space) */
-.auth-social { display: none; flex-direction: column; gap: .45rem; margin-bottom: .65rem; }
+/* Social buttons — compact full-width pills on mobile, full labels on desktop */
+.auth-social { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .6rem; }
 .auth-social-btn {
-    display: flex; align-items: center; gap: .7rem;
+    display: flex; align-items: center; gap: .65rem;
     width: 100%;
     background: var(--bg-panel, #fff);
     border: 1px solid var(--border-glass, #e2e8f0);
     color: var(--text-primary);
-    font-weight: 600; font-size: .92rem;
-    padding: .6rem 1rem;
+    font-weight: 600; font-size: .88rem;
+    padding: .5rem .9rem;
     border-radius: 999px;
     cursor: pointer; font-family: inherit;
     transition: background .15s ease, border-color .15s ease, transform .1s ease;
@@ -113,18 +116,17 @@ body:has(.auth-shell) {
 .auth-social-btn:hover { background: var(--bg-main, #f8fafc); border-color: #cbd5e1; }
 .auth-social-btn:active { transform: scale(.98); }
 .auth-social-btn .auth-social-icon {
-    flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center;
-    width: 20px; height: 20px;
+    flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
 }
-.auth-social-btn span { flex: 1; text-align: center; margin-right: 20px; }
+.auth-social-btn span { flex: 1; text-align: center; margin-right: 18px; }
 .auth-social-btn.google .auth-social-icon { color: #ea4335; }
 .auth-social-btn.facebook .auth-social-icon { color: #1877f2; }
 
 .auth-divider {
-    display: none;
     text-align: center; color: var(--text-secondary);
-    font-size: .75rem; font-weight: 600;
-    margin: .3rem 0 .55rem; position: relative;
+    font-size: .72rem; font-weight: 600;
+    margin: .25rem 0 .5rem; position: relative;
 }
 .auth-divider::before, .auth-divider::after {
     content: ''; position: absolute; top: 50%;
